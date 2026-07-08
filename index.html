@@ -2172,6 +2172,8 @@
               规范化画师名</button>
             <button class="btn btn-ghost btn-sm" id="mergeDuplicateArtistsBtn" title="合并重复画师（同名的保留第一个）">🔗
               合并重复画师</button>
+            <button class="btn btn-ghost btn-sm" id="repairArtworkLinksBtn" title="检查并修复作品的画师关联（解决导入后画师不匹配的问题）">🔧
+              修复作品关联</button>
             <button class="btn btn-primary btn-sm" id="importDocxBtn">📄 导入 docx</button>
             <select id="docxOrderSelect"
               style="margin-left: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; color: var(--text); font-size: 12px;">
@@ -3636,8 +3638,8 @@
 
       uploadFiles.forEach((fi, idx) => {
         // 如果卡片已存在，复用（保持输入）
-        if (existingCards[idx]) {
-          delete existingCards[idx];
+        if (existingCards[fi.uploadId]) {
+          delete existingCards[fi.uploadId];
           return;
         }
         // 创建新卡片
@@ -4983,14 +4985,29 @@ color:var(--text3);
             await dbPut("tags", imp);
           }
         }
-        // artworks 合并：按 id 去重（图片数据也按 id 合并）
+        // artworks 合并：按 id 去重，同时修正 artistId 为合并后画师/组合的ID
         const existingAwId = new Set(artworks.map(a => a.id));
+        const existingGByNameMap = new Map(groups.map(g => [g.name, g]));
         let newAwCount = 0;
         for (const imp of (result.artworks || [])) {
           if (!existingAwId.has(imp.id)) {
-            artworks.push(imp);
-            existingAwId.add(imp.id);
-            await dbPut("artworks", imp);
+            const fixedAw = { ...imp };
+            const origArtist = result.artists?.find(a => a.id === imp.artistId);
+            const origGroup = result.groups?.find(g => g.id === imp.artistId);
+            if (origArtist) {
+              const mergedArtist = existingByName.get(origArtist.name);
+              if (mergedArtist) {
+                fixedAw.artistId = mergedArtist.id;
+              }
+            } else if (origGroup) {
+              const mergedGroup = existingGByNameMap.get(origGroup.name);
+              if (mergedGroup) {
+                fixedAw.artistId = mergedGroup.id;
+              }
+            }
+            artworks.push(fixedAw);
+            existingAwId.add(fixedAw.id);
+            await dbPut("artworks", fixedAw);
             newAwCount++;
           }
         }
@@ -5111,6 +5128,60 @@ color:var(--text3);
       renderAdmin();
     });
 
+    // ===== 修复作品关联：检查并修复 artistId 指向不存在画师的作品 =====
+    document.getElementById("repairArtworkLinksBtn")?.addEventListener("click", async () => {
+      if (!artworks.length) { showToast("没有作品", "error"); return; }
+
+      const validIds = new Set([...artists.map(a => a.id), ...groups.map(g => g.id)]);
+      const orphaned = artworks.filter(aw => !validIds.has(aw.artistId));
+
+      if (orphaned.length === 0) {
+        showToast("所有作品关联正常，无需修复");
+        return;
+      }
+
+      // 尝试通过标题匹配画师名
+      const artistByName = new Map();
+      artists.forEach(a => artistByName.set(normForSearch(a.name), a));
+      groups.forEach(g => artistByName.set(normForSearch(g.name), g));
+
+      const autoFixed = [];
+      const unfixable = [];
+
+      for (const aw of orphaned) {
+        const titleNorm = normForSearch(aw.title || "");
+        const matched = artistByName.get(titleNorm);
+        if (matched) {
+          aw.artistId = matched.id;
+          await dbPut("artworks", aw);
+          autoFixed.push({ title: aw.title, artist: matched.name });
+        } else {
+          unfixable.push(aw);
+        }
+      }
+
+      let msg = `发现 ${orphaned.length} 件作品关联异常\n`;
+      if (autoFixed.length > 0) {
+        msg += `\n✅ 已自动修复 ${autoFixed.length} 件（通过标题匹配画师名）：`;
+        autoFixed.slice(0, 5).forEach(f => msg += `\n  "${f.title}" → ${f.artist}`);
+        if (autoFixed.length > 5) msg += `\n  …还有 ${autoFixed.length - 5} 件`;
+      }
+      if (unfixable.length > 0) {
+        msg += `\n\n⚠ ${unfixable.length} 件无法自动匹配，请手动编辑：`;
+        unfixable.slice(0, 5).forEach(aw => msg += `\n  "${aw.title || '无标题'}" (artistId: ${aw.artistId})`);
+        if (unfixable.length > 5) msg += `\n  …还有 ${unfixable.length - 5} 件`;
+      }
+
+      if (autoFixed.length > 0) {
+        showToast(`✅ 已修复 ${autoFixed.length} 件作品关联${unfixable.length > 0 ? `，${unfixable.length} 件需手动处理` : ""}`);
+        renderGallery();
+        renderAdmin();
+      } else {
+        showToast(`发现 ${orphaned.length} 件异常，但无法自动匹配`, "error");
+      }
+      console.log(msg);
+    });
+
     // ===== 手动压缩数据库中的图片（转 JPG，带进度条）=====
     document.getElementById("manualCompressBtn")?.addEventListener("click", async () => {
       if (!artworks.length) { showToast("数据库中没有图片", "error"); return; }
@@ -5195,38 +5266,72 @@ color:var(--text3);
       return new Blob([arr], { type: mime });
     }
 
-    // ===== 压缩废弃画师的图片到极小体积 =====
+    // ===== 压缩废弃画师：每个画师只保留一件压缩作品，删除其他 =====
     document.getElementById("compressDiscardedBtn")?.addEventListener("click", async () => {
       const discardedArtists = artists.filter(a => a.discarded);
       if (discardedArtists.length === 0) { showToast("没有废弃画师", "error"); return; }
       const discardedIds = new Set(discardedArtists.map(a => a.id));
       const awList = artworks.filter(a => discardedIds.has(a.artistId));
       if (awList.length === 0) { showToast("废弃画师没有作品", "error"); return; }
-      if (!confirm(`将压缩 ${awList.length} 件废弃画师的作品到极小体积（清晰度会明显降低）。确定？`)) return;
-      showProgress("压缩废弃画师作品中…", 0, awList.length);
-      let successCount = 0;
-      for (let i = 0; i < awList.length; i++) {
-        const aw = awList[i];
+
+      const keepCount = discardedIds.size;
+      const deleteCount = awList.length - keepCount;
+      if (!confirm(`将对 ${discardedIds.size} 位废弃画师进行处理：\n• 每位画师只保留最早的一件作品\n• 保留作品压缩到极小体积\n• 删除其余 ${deleteCount} 件作品及其原始数据\n\n确定继续？`)) return;
+
+      showProgress("处理废弃画师作品中…", 0, awList.length);
+      let keptCount = 0, deletedCount = 0;
+
+      const awByArtist = {};
+      awList.forEach(aw => {
+        if (!awByArtist[aw.artistId]) awByArtist[aw.artistId] = [];
+        awByArtist[aw.artistId].push(aw);
+      });
+
+      for (const [artistId, aws] of Object.entries(awByArtist)) {
+        aws.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        const keepAw = aws[0];
+        const deleteAws = aws.slice(1);
+
         try {
-          const row = await dbGetOne("images", aw.id);
-          if (!row?.data) { continue; }
-          const dataUrl = row.data;
-          // 极小体积：缩小尺寸 + 低质量，使用 Image 元素确保兼容
-          const compressed = await compressDataUrl(dataUrl, 400, 400, 0.4);
-          if (compressed && compressed !== dataUrl) {
-            await dbPut("images", { id: aw.id, data: compressed });
-            imgCache.delete(aw.id);
-            delete images[aw.id];
-            _cacheSet(aw.id, compressed);
-            successCount++;
+          const row = await dbGetOne("images", keepAw.id);
+          if (row?.data) {
+            const compressed = await compressDataUrl(row.data, 400, 400, 0.4);
+            if (compressed) {
+              await dbPut("images", { id: keepAw.id, data: compressed });
+              imgCache.delete(keepAw.id);
+              delete images[keepAw.id];
+              _cacheSet(keepAw.id, compressed);
+            }
           }
-        } catch (err) { console.error("压缩失败:", aw.id, err); }
-        showProgress("压缩废弃画师作品中…", i + 1, awList.length);
+
+          keepAw.title = "";
+          keepAw.tags = [];
+          keepAw.source = "";
+          keepAw.note = "";
+          keepAw.nai = null;
+          await dbPut("artworks", keepAw);
+          keptCount++;
+
+          for (const delAw of deleteAws) {
+            const idx = artworks.findIndex(a => a.id === delAw.id);
+            if (idx >= 0) artworks.splice(idx, 1);
+            await dbDelete("artworks", delAw.id);
+            await dbDelete("images", delAw.id);
+            imgCache.delete(delAw.id);
+            delete images[delAw.id];
+            deletedCount++;
+          }
+        } catch (err) { console.error("处理失败:", artistId, err); }
+        showProgress("处理废弃画师作品中…", keptCount + deletedCount, awList.length);
         await new Promise(r => setTimeout(r, 10));
       }
+
       hideProgress();
-      showToast(`✅ 已压缩 ${successCount}/${awList.length} 件废弃画师作品`);
+      showToast(`✅ 处理完成！保留 ${keptCount} 件压缩作品，删除 ${deletedCount} 件作品`, "success");
+      updateStats();
       renderGallery();
+      renderArtists();
+      renderAdmin();
     });
     // 通过 dataUrl 压缩图片（用 Image 元素加载，兼容性更好）
     function compressDataUrl(dataUrl, maxW, maxH, quality) {
