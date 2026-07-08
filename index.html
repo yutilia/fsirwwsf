@@ -2681,9 +2681,15 @@
       } else if (sortBy === "uploadDesc") {
         filtered = [...filtered].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       } else if (sortBy === "letterAsc") {
-        filtered = [...filtered].sort((a, b) => getFirstLetter(getArtistName(a.artistId)).localeCompare(getFirstLetter(getArtistName(b.artistId))));
+        filtered = [...filtered].sort((a, b) => {
+          const cmp = getArtistName(a.artistId).localeCompare(getArtistName(b.artistId), undefined, { sensitivity: "base" });
+          return cmp !== 0 ? cmp : (a.createdAt || 0) - (b.createdAt || 0);
+        });
       } else if (sortBy === "letterDesc") {
-        filtered = [...filtered].sort((a, b) => getFirstLetter(getArtistName(b.artistId)).localeCompare(getFirstLetter(getArtistName(a.artistId))));
+        filtered = [...filtered].sort((a, b) => {
+          const cmp = getArtistName(b.artistId).localeCompare(getArtistName(a.artistId), undefined, { sensitivity: "base" });
+          return cmp !== 0 ? cmp : (a.createdAt || 0) - (b.createdAt || 0);
+        });
       }
 
       const totalPages = Math.max(1, Math.ceil(filtered.length / galleryPageSize));
@@ -2728,6 +2734,7 @@
                     <button class="btn btn-ghost btn-sm del-aw-btn" data-id="${aw.id}" title="删除此画作">✕</button>
                 </div>
             </div>`;
+        card.dataset.awId = aw.id;
         grid.appendChild(card);
       });
 
@@ -2747,11 +2754,7 @@
             img.className = "artwork-thumb";
             img.src = data;
             img.alt = "";
-            img.style.cssText = "opacity:0;transition:opacity 0.2s;cursor:zoom-in;";
-            img.addEventListener("click", async () => {
-              const aw = artworks.find(a => a.id === id);
-              if (aw) openLightbox(await getImage(aw.id), aw.title, getArtistName(aw.artistId), aw.source, aw.nai);
-            });
+            img.style.cssText = "opacity:0;transition:opacity 0.2s;";
             placeholder.replaceWith(img);
             requestAnimationFrame(() => { img.style.opacity = "1"; });
           }
@@ -2759,9 +2762,13 @@
       }, { rootMargin: "200px" }); // 提前200px开始加载
       grid.querySelectorAll(".lazy-thumb").forEach(el => {
         window._galleryObserver.observe(el);
-        el.addEventListener("click", async () => {
-          const id = el.dataset.id;
-          const aw = artworks.find(a => a.id === id);
+      });
+      // 卡片点击放大：点击卡片任意位置（非按钮）即可打开大图
+      grid.querySelectorAll(".artwork-card").forEach(card => {
+        card.addEventListener("click", async (e) => {
+          if (e.target.closest("button")) return; // 点击按钮不触发
+          const awId = card.dataset.awId;
+          const aw = artworks.find(a => a.id === awId);
           if (aw) openLightbox(await getImage(aw.id), aw.title, getArtistName(aw.artistId), aw.source, aw.nai);
         });
       });
@@ -3406,8 +3413,8 @@
       const body = document.getElementById("artworkModalBody");
       const tagOptions = tags.map(t => `<button class="filter-tag ${currentEditArtwork.tags?.includes(t.id) ? "active" : ""}" data-tag="${t.id}">${escapeHtml(t.name)}</button>`).join("");
       const artistOptions = `<option value="">未指定</option>
-        <optgroup label="单人画师">${artists.map(a => `<option value="${a.id}" ${currentEditArtwork.artistId === a.id ? "selected" : ""}>${escapeHtml(a.name)}</option>`).join("")}</optgroup>
-        <optgroup label="画师组合">${groups.map(g => `<option value="${g.id}" ${currentEditArtwork.artistId === g.id ? "selected" : ""}>[组合] ${escapeHtml(g.name)}</option>`).join("")}</optgroup>`;
+        <optgroup label="单人画师">${[...artists].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })).map(a => `<option value="${a.id}" ${currentEditArtwork.artistId === a.id ? "selected" : ""}>${escapeHtml(a.name)}</option>`).join("")}</optgroup>
+        <optgroup label="画师组合">${[...groups].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })).map(g => `<option value="${g.id}" ${currentEditArtwork.artistId === g.id ? "selected" : ""}>[组合] ${escapeHtml(g.name)}</option>`).join("")}</optgroup>`;
       body.innerHTML = `
         <div class="form-group"><label class="form-label">作品名称</label><input class="form-input" id="awTitle" value="${escapeHtml(currentEditArtwork.title || "")}"></div>
         <div class="form-group"><label class="form-label">归属画师</label><select class="form-input" id="awArtist">${artistOptions}</select></div>
@@ -3755,7 +3762,7 @@ flex:none;
 全部画师
 </option>
 
-${artists.map(a =>
+${[...artists].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })).map(a =>
           `<option value="${a.id}">
 ${escapeHtml(a.name)}
 </option>`
@@ -5205,8 +5212,8 @@ color:var(--text3);
       if (repairPendingList.length > 0) {
         const body = document.getElementById("repairModalBody");
         const artistOpts = `<option value="">— 选择画师 —</option>` +
-          `<optgroup label="单人画师">${artists.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join("")}</optgroup>` +
-          `<optgroup label="画师组合">${groups.map(g => `<option value="${g.id}">[组合] ${escapeHtml(g.name)}</option>`).join("")}</optgroup>`;
+          `<optgroup label="单人画师">${[...artists].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })).map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join("")}</optgroup>` +
+          `<optgroup label="画师组合">${[...groups].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })).map(g => `<option value="${g.id}">[组合] ${escapeHtml(g.name)}</option>`).join("")}</optgroup>`;
 
         body.innerHTML = `
           <div style="margin-bottom:12px;padding:10px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--text2);">
