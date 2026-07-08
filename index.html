@@ -1863,6 +1863,11 @@
             <button class="filter-tag active" id="discHideBtn">隐藏废弃</button>
             <button class="filter-tag" id="discShowBtn">含废弃</button>
             <button class="filter-tag" id="discOnlyBtn">仅废弃</button>
+            <span style="font-size:12px;color:var(--text3);margin-left:10px;">作品数：</span>
+            <button class="filter-tag active" id="countAllBtn">全部</button>
+            <button class="filter-tag" id="count1Btn">1件</button>
+            <button class="filter-tag" id="count25Btn">2-5件</button>
+            <button class="filter-tag" id="countMoreBtn">5件+</button>
           </div>
           <div class="gallery-stats" id="galleryStats"></div>
           <div class="filter-bar" id="tagFilterBar"></div>
@@ -2340,6 +2345,7 @@
     let galleryRateFilter = "all"; // all/up/down
     let galleryShowDiscarded = false; // 兼容旧代码
     let galleryDiscardedMode = "hide"; // hide / show / only
+    let galleryCountFilter = "all"; // all / 1 / 2-5 / more
     let artistSearchQuery = "";
     let artistSortMode = "default";
     let artistFilterMode = "all"; // all/active/discarded
@@ -2371,6 +2377,9 @@
     function isGroupDiscarded(groupId) {
       const g = groups.find(x => x.id === groupId);
       return !!(g && g.discarded);
+    }
+    function getArtistArtworkCount(artistId) {
+      return artworks.filter(a => a.artistId === artistId).length;
     }
     // 切换废弃标签
     async function toggleDiscarded(id, isGroup) {
@@ -2637,7 +2646,13 @@
         const matchDiscarded = galleryDiscardedMode === "show" ? true
           : galleryDiscardedMode === "only" ? discarded
             : !discarded;
-        return matchSearch && matchTag && matchType && matchRate && matchDiscarded;
+        // 作品数筛选
+        const artistCount = getArtistArtworkCount(a.artistId);
+        const matchCount = galleryCountFilter === "all"
+          || (galleryCountFilter === "1" && artistCount === 1)
+          || (galleryCountFilter === "2-5" && artistCount >= 2 && artistCount <= 5)
+          || (galleryCountFilter === "more" && artistCount > 5);
+        return matchSearch && matchTag && matchType && matchRate && matchDiscarded && matchCount;
       });
       // 排序
       const sortBy = gallerySortMode;
@@ -3453,7 +3468,11 @@
     // 规范化画师名：单词间空格转下划线，去除首尾空格和下划线
     function sanitizeArtistName(name) {
       if (!name) return "";
-      return name.trim().replace(/\s+/g, "_").replace(/_+$/, "");
+      let cleaned = name.trim().replace(/\s+/g, "_").replace(/_+$/, "");
+      if (/^[A-Z_]+$/.test(cleaned)) {
+        cleaned = cleaned.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("_");
+      }
+      return cleaned;
     }
     // 搜索规范化：把空格和下划线都视作同一字符，便于 "zeko ako" 匹配 "zeko_ako"
     function normForSearch(s) {
@@ -5735,6 +5754,21 @@ color:var(--text3);
         btn?.addEventListener("click", () => {
           galleryDiscardedMode = discModes[idx];
           discBtns.forEach(b => b?.classList.remove("active"));
+          btn.classList.add("active");
+          galleryPage = 1; renderGallery();
+        });
+      });
+      // 作品数筛选
+      const countAllBtn = document.getElementById("countAllBtn");
+      const count1Btn = document.getElementById("count1Btn");
+      const count25Btn = document.getElementById("count25Btn");
+      const countMoreBtn = document.getElementById("countMoreBtn");
+      const countBtns = [countAllBtn, count1Btn, count25Btn, countMoreBtn];
+      const countModes = ["all", "1", "2-5", "more"];
+      countBtns.forEach((btn, idx) => {
+        btn?.addEventListener("click", () => {
+          galleryCountFilter = countModes[idx];
+          countBtns.forEach(b => b?.classList.remove("active"));
           btn.classList.add("active");
           galleryPage = 1; renderGallery();
         });
