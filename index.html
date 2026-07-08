@@ -2727,13 +2727,24 @@
             img.className = "artwork-thumb";
             img.src = data;
             img.alt = "";
-            img.style.cssText = "opacity:0;transition:opacity 0.2s;";
+            img.style.cssText = "opacity:0;transition:opacity 0.2s;cursor:zoom-in;";
+            img.addEventListener("click", async () => {
+              const aw = artworks.find(a => a.id === id);
+              if (aw) openLightbox(await getImage(aw.id), aw.title, getArtistName(aw.artistId), aw.source, aw.nai);
+            });
             placeholder.replaceWith(img);
             requestAnimationFrame(() => { img.style.opacity = "1"; });
           }
         });
       }, { rootMargin: "200px" }); // 提前200px开始加载
-      grid.querySelectorAll(".lazy-thumb").forEach(el => window._galleryObserver.observe(el));
+      grid.querySelectorAll(".lazy-thumb").forEach(el => {
+        window._galleryObserver.observe(el);
+        el.addEventListener("click", async () => {
+          const id = el.dataset.id;
+          const aw = artworks.find(a => a.id === id);
+          if (aw) openLightbox(await getImage(aw.id), aw.title, getArtistName(aw.artistId), aw.source, aw.nai);
+        });
+      });
       document.querySelectorAll(".lightbox-btn").forEach(btn => btn.addEventListener("click", async (e) => {
         e.stopPropagation();
         const aw = artworks.find(a => a.id === btn.dataset.id);
