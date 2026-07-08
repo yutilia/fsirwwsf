@@ -602,8 +602,9 @@
       left: 0;
       right: 0;
       padding: 20px 32px;
-      background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-      color: var(--text);
+      background: rgba(0, 0, 0, 0.92);
+      color: #e0e0e0;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .lightbox-close {
@@ -2272,13 +2273,15 @@
   </div>
 
   <!-- 灯箱 -->
-  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-  <img class="lightbox-img" id="lightboxImg" alt="">
-  <div class="lightbox-info">
-    <div id="lightboxTitle" style="font-family:'Noto Serif JP',serif;font-size:16px;"></div>
-    <div id="lightboxArtist" style="color:var(--text2);font-size:13px;margin-top:4px;"></div>
-    <div id="lightboxSource" style="color:var(--text3);font-size:12px;margin-top:4px;"></div>
-  </div>
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img class="lightbox-img" id="lightboxImg" alt="">
+    <div class="lightbox-info">
+      <div id="lightboxTitle" style="font-family:'Noto Serif JP',serif;font-size:16px;color:#ffffff;font-weight:500;">
+      </div>
+      <div id="lightboxArtist" style="color:#a0c8d8;font-size:13px;margin-top:4px;"></div>
+      <div id="lightboxSource" style="color:#909090;font-size:12px;margin-top:4px;"></div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -2502,7 +2505,7 @@
       if (!naiEl) {
         naiEl = document.createElement("div");
         naiEl.id = "lightboxNai";
-        naiEl.style.cssText = "margin-top:8px;font-size:11px;color:var(--text3);";
+        naiEl.style.cssText = "margin-top:8px;font-size:12px;color:#b0b0b0;";
         document.querySelector(".lightbox-info").appendChild(naiEl);
       }
 
@@ -2516,10 +2519,10 @@
         if (naiData.prompt) parts.push(`✨ ${naiData.prompt.slice(0, 120)}${naiData.prompt.length > 120 ? "…" : ""}`);
         if (naiData.seed !== "") parts.push(`🎲 ${naiData.seed}`);
 
-        naiEl.innerHTML = parts.map(p => `<div>${p}</div>`).join("") +
+        naiEl.innerHTML = parts.map(p => `<div style="color:#c0c0c0;line-height:1.5;">${p}</div>`).join("") +
           `<div style="display:flex; gap:8px; margin-top:10px;">
-                <button onclick="copyLightboxPrompt()" style="background:rgba(255,255,255,0.1);border:none;color:#ccc;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;">📋 复制提示词</button>
-                <button onclick="downloadLightboxPng()" id="lightboxDlBtn" style="background:rgba(126,184,201,0.2);border:1px solid var(--accent2);color:var(--accent2);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">⬇️ 下载原数据PNG</button>
+                <button onclick="copyLightboxPrompt()" style="background:rgba(255,255,255,0.1);border:none;color:#d0d0d0;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;">📋 复制提示词</button>
+                <button onclick="downloadLightboxPng()" id="lightboxDlBtn" style="background:rgba(126,184,201,0.2);border:1px solid #7eb8c9;color:#7eb8c9;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;">⬇️ 下载原数据PNG</button>
             </div>`;
       } else {
         naiEl.innerHTML = `<div style="display:flex; gap:8px; margin-top:10px;">
@@ -2600,6 +2603,12 @@
     }
 
     function closeLightbox() { document.getElementById("lightbox").style.display = "none"; }
+
+    document.getElementById("lightbox")?.addEventListener("click", (e) => {
+      if (e.target.classList.contains("lightbox")) {
+        closeLightbox();
+      }
+    });
     function getArtistName(id) {
       const a = artists.find(x => x.id === id);
       const g = groups.find(x => x.id === id);
