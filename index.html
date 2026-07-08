@@ -3647,6 +3647,12 @@
         const boundGroup = groups.find(g => g.id === fi.artistId);
         const boundName = boundArtist?.name || boundGroup?.name || "";
 
+        // 检查提取的画师名是否已存在（大小写不敏感）
+        const existingArtist = fi.extractedArtist
+          ? artists.find(a => normForSearch(a.name) === normForSearch(fi.extractedArtist))
+          : null;
+        const existsBadge = existingArtist ? `<span style="margin-left:4px;color:var(--success);font-size:12px;">✓</span>` : "";
+
         let naiSection = "";
         if (fi.naiMeta) {
           const p = fi.naiMeta; const parsed = p._parsed || {};
@@ -3682,7 +3688,10 @@
                 <div class="form-group">
                     <label class="form-label">画师（新建）</label>
                     <div class="artist-new-row">
-                        <input class="form-input upload-artist-name" data-idx="${idx}" value="${escapeHtml(fi.extractedArtist || '')}" placeholder="${boundName ? '已绑: ' + boundName : '新画师名'}" style="flex:1;">
+                        <div style="display:flex;align-items:center;flex:1;">
+                            <input class="form-input upload-artist-name" data-idx="${idx}" value="${escapeHtml(fi.extractedArtist || '')}" placeholder="${boundName ? '已绑: ' + boundName : '新画师名'}" style="flex:1;">
+                            ${existsBadge}
+                        </div>
                         <button class="btn btn-primary btn-sm create-artist-btn" data-idx="${idx}" style="white-space:nowrap;">＋创建</button>
                     </div>
                     <button class="artist-search-toggle" data-idx="${idx}">▾ 搜索已有画师</button>
