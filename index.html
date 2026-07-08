@@ -2165,6 +2165,8 @@
             <button class="btn btn-ghost btn-sm" id="exportDiscardedBtn" title="仅导出被标为废弃的画师名">📤 导出废弃画师</button>
             <button class="btn btn-ghost btn-sm" id="normalizeArtistsBtn" title="规范化所有画师名（空格转下划线，去末尾空格/下划线）">🔧
               规范化画师名</button>
+            <button class="btn btn-ghost btn-sm" id="mergeDuplicateArtistsBtn" title="合并重复画师（同名的保留第一个）">🔗
+              合并重复画师</button>
             <button class="btn btn-primary btn-sm" id="importDocxBtn">📄 导入 docx</button>
             <select id="docxOrderSelect"
               style="margin-left: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; color: var(--text); font-size: 12px;">
@@ -5019,6 +5021,55 @@ color:var(--text3);
           console.log("规范化列表:", changedList);
         }
       }
+    });
+
+    // ===== 合并重复画师（同名的保留第一个，作品迁移到第一个）=====
+    document.getElementById("mergeDuplicateArtistsBtn")?.addEventListener("click", async () => {
+      if (!artists.length) { showToast("没有画师", "error"); return; }
+
+      const nameMap = new Map();
+      const duplicates = [];
+      for (const artist of artists) {
+        const normName = artist.name.toLowerCase();
+        if (nameMap.has(normName)) {
+          duplicates.push({ original: nameMap.get(normName), duplicate: artist });
+        } else {
+          nameMap.set(normName, artist);
+        }
+      }
+
+      if (duplicates.length === 0) {
+        showToast("没有重复画师");
+        return;
+      }
+
+      const confirmMsg = `发现 ${duplicates.length} 组重复画师，将保留第一个并迁移作品：\n\n${duplicates.slice(0, 5).map((d, i) => `${i + 1}. "${d.duplicate.name}" → "${d.original.name}"`).join("\n")}${duplicates.length > 5 ? `\n…还有 ${duplicates.length - 5} 组` : ""}`;
+
+      if (!confirm(confirmMsg)) return;
+
+      let mergedCount = 0;
+      let movedArtworks = 0;
+
+      for (const { original, duplicate } of duplicates) {
+        // 迁移作品
+        for (const aw of artworks) {
+          if (aw.artistId === duplicate.id) {
+            aw.artistId = original.id;
+            await dbPut("artworks", aw);
+            movedArtworks++;
+          }
+        }
+        // 删除重复画师
+        await dbDelete("artists", duplicate.id);
+        const idx = artists.findIndex(a => a.id === duplicate.id);
+        if (idx !== -1) artists.splice(idx, 1);
+        mergedCount++;
+      }
+
+      showToast(`✅ 已合并 ${mergedCount} 组重复画师，迁移 ${movedArtworks} 件作品`);
+      renderArtists();
+      renderGallery();
+      renderAdmin();
     });
 
     // ===== 手动压缩数据库中的图片（转 JPG，带进度条）=====
