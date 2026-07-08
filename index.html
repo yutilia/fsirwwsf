@@ -2163,6 +2163,8 @@
             <button class="btn btn-ghost btn-sm" id="compressDiscardedBtn" title="把废弃画师的图片压缩到极小体积">🗑 压缩废弃画师</button>
             <button class="btn btn-ghost btn-sm" id="exportArtistsTxtBtn" title="导出全部画师名为txt（一行一个）">📝 导出画师txt</button>
             <button class="btn btn-ghost btn-sm" id="exportDiscardedBtn" title="仅导出被标为废弃的画师名">📤 导出废弃画师</button>
+            <button class="btn btn-ghost btn-sm" id="normalizeArtistsBtn" title="规范化所有画师名（空格转下划线，去末尾空格/下划线）">🔧
+              规范化画师名</button>
             <button class="btn btn-primary btn-sm" id="importDocxBtn">📄 导入 docx</button>
             <select id="docxOrderSelect"
               style="margin-left: 5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; color: var(--text); font-size: 12px;">
@@ -3446,10 +3448,10 @@
       }
       return null;
     }
-    // 规范化画师名：单词间空格转下划线，去除首尾空格
+    // 规范化画师名：单词间空格转下划线，去除首尾空格和下划线
     function sanitizeArtistName(name) {
       if (!name) return "";
-      return name.trim().replace(/\s+/g, "_");
+      return name.trim().replace(/\s+/g, "_").replace(/_+$/, "");
     }
     // 搜索规范化：把空格和下划线都视作同一字符，便于 "zeko ako" 匹配 "zeko_ako"
     function normForSearch(s) {
@@ -4989,6 +4991,34 @@ color:var(--text3);
       a.click();
       URL.revokeObjectURL(url);
       showToast(`已导出 ${discarded.length} 位废弃画师`);
+    });
+
+    // ===== 规范化已有画师名（空格转下划线，去末尾空格/下划线）=====
+    document.getElementById("normalizeArtistsBtn")?.addEventListener("click", async () => {
+      if (!artists.length) { showToast("没有画师", "error"); return; }
+      let changedCount = 0;
+      const changedList = [];
+      for (const artist of artists) {
+        const oldName = artist.name;
+        const newName = sanitizeArtistName(oldName);
+        if (newName && newName !== oldName) {
+          artist.name = newName;
+          await dbPut("artists", artist);
+          changedCount++;
+          changedList.push(`${oldName} → ${newName}`);
+        }
+      }
+      if (changedCount === 0) {
+        showToast("所有画师名已规范化，无需修改");
+      } else {
+        showToast(`✅ 已规范化 ${changedCount} 位画师名`);
+        renderArtists();
+        renderGallery();
+        renderAdmin();
+        if (changedList.length <= 20) {
+          console.log("规范化列表:", changedList);
+        }
+      }
     });
 
     // ===== 手动压缩数据库中的图片（转 JPG，带进度条）=====
