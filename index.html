@@ -2252,15 +2252,33 @@
     </div>
   </div>
 
-  <!-- 灯箱 -->
-  <div class="lightbox" id="lightbox">
-    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
-    <img class="lightbox-img" id="lightboxImg" alt="">
-    <div class="lightbox-info">
-      <div id="lightboxTitle" style="font-family:'Noto Serif JP',serif;font-size:16px;"></div>
-      <div id="lightboxArtist" style="color:var(--text2);font-size:13px;margin-top:4px;"></div>
-      <div id="lightboxSource" style="color:var(--text3);font-size:12px;margin-top:4px;"></div>
+  <!-- 模态框：修复作品关联 -->
+  <div class="modal-overlay" id="repairModal">
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <span class="modal-title">修复作品关联</span>
+        <button class="close-btn" onclick="closeModal('repairModal')"><svg viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg></button>
+      </div>
+      <div class="modal-body" id="repairModalBody" style="max-height:60vh;overflow-y:auto;"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('repairModal')">取消</button>
+        <button class="btn btn-primary" id="saveRepairBtn">保存修复</button>
+      </div>
     </div>
+  </div>
+
+  <!-- 灯箱 -->
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img class="lightbox-img" id="lightboxImg" alt="">
+  <div class="lightbox-info">
+    <div id="lightboxTitle" style="font-family:'Noto Serif JP',serif;font-size:16px;"></div>
+    <div id="lightboxArtist" style="color:var(--text2);font-size:13px;margin-top:4px;"></div>
+    <div id="lightboxSource" style="color:var(--text3);font-size:12px;margin-top:4px;"></div>
+  </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -3637,9 +3655,26 @@
       });
 
       uploadFiles.forEach((fi, idx) => {
-        // 如果卡片已存在，复用（保持输入）
+        // 如果卡片已存在，复用（保持输入），但更新提取的画师名
         if (existingCards[fi.uploadId]) {
+          const existingCard = existingCards[fi.uploadId];
           delete existingCards[fi.uploadId];
+          // 更新提取的画师名到输入框（如果用户未手动修改过）
+          const nameInput = existingCard.querySelector(`.upload-artist-name[data-idx="${idx}"]`);
+          if (nameInput && fi.extractedArtist && !nameInput.dataset.userEdited) {
+            nameInput.value = fi.extractedArtist;
+          }
+          // 更新已存在标记
+          const badgeContainer = existingCard.querySelector(".artist-new-row > div");
+          if (badgeContainer && fi.extractedArtist) {
+            const existingArtist = artists.find(a => normForSearch(a.name) === normForSearch(fi.extractedArtist));
+            const oldBadge = badgeContainer.querySelector(".exists-badge");
+            if (existingArtist && !oldBadge) {
+              badgeContainer.insertAdjacentHTML("beforeend", `<span class="exists-badge" style="margin-left:4px;color:var(--success);font-size:12px;">✓</span>`);
+            } else if (!existingArtist && oldBadge) {
+              oldBadge.remove();
+            }
+          }
           return;
         }
         // 创建新卡片
@@ -3664,7 +3699,7 @@
         const existingArtist = fi.extractedArtist
           ? artists.find(a => normForSearch(a.name) === normForSearch(fi.extractedArtist))
           : null;
-        const existsBadge = existingArtist ? `<span style="margin-left:4px;color:var(--success);font-size:12px;">✓</span>` : "";
+        const existsBadge = existingArtist ? `<span class="exists-badge" style="margin-left:4px;color:var(--success);font-size:12px;">✓</span>` : "";
 
         let naiSection = "";
         if (fi.naiMeta) {
@@ -3768,6 +3803,11 @@ ${escapeHtml(a.name)}
     function _bindCardEvents(card, idx) {
       // 作品名
       card.querySelector(`.upload-title`)?.addEventListener("input", e => { uploadFiles[idx].title = e.target.value; });
+      // 画师名输入：标记用户已编辑
+      card.querySelector(`.upload-artist-name`)?.addEventListener("input", e => {
+        e.target.dataset.userEdited = "1";
+        uploadFiles[idx].extractedArtist = e.target.value;
+      });
       // 备注
       card.querySelector(`.upload-note`)?.addEventListener("input", e => { uploadFiles[idx].note = e.target.value; });
       // 标签checkbox
@@ -5129,6 +5169,7 @@ color:var(--text3);
     });
 
     // ===== 修复作品关联：检查并修复 artistId 指向不存在画师的作品 =====
+    let repairPendingList = [];
     document.getElementById("repairArtworkLinksBtn")?.addEventListener("click", async () => {
       if (!artworks.length) { showToast("没有作品", "error"); return; }
 
@@ -5145,8 +5186,8 @@ color:var(--text3);
       artists.forEach(a => artistByName.set(normForSearch(a.name), a));
       groups.forEach(g => artistByName.set(normForSearch(g.name), g));
 
-      const autoFixed = [];
-      const unfixable = [];
+      let autoFixedCount = 0;
+      repairPendingList = [];
 
       for (const aw of orphaned) {
         const titleNorm = normForSearch(aw.title || "");
@@ -5154,32 +5195,66 @@ color:var(--text3);
         if (matched) {
           aw.artistId = matched.id;
           await dbPut("artworks", aw);
-          autoFixed.push({ title: aw.title, artist: matched.name });
+          autoFixedCount++;
         } else {
-          unfixable.push(aw);
+          repairPendingList.push(aw);
         }
       }
 
-      let msg = `发现 ${orphaned.length} 件作品关联异常\n`;
-      if (autoFixed.length > 0) {
-        msg += `\n✅ 已自动修复 ${autoFixed.length} 件（通过标题匹配画师名）：`;
-        autoFixed.slice(0, 5).forEach(f => msg += `\n  "${f.title}" → ${f.artist}`);
-        if (autoFixed.length > 5) msg += `\n  …还有 ${autoFixed.length - 5} 件`;
-      }
-      if (unfixable.length > 0) {
-        msg += `\n\n⚠ ${unfixable.length} 件无法自动匹配，请手动编辑：`;
-        unfixable.slice(0, 5).forEach(aw => msg += `\n  "${aw.title || '无标题'}" (artistId: ${aw.artistId})`);
-        if (unfixable.length > 5) msg += `\n  …还有 ${unfixable.length - 5} 件`;
-      }
+      // 如果有需要手动处理的，弹出模态框
+      if (repairPendingList.length > 0) {
+        const body = document.getElementById("repairModalBody");
+        const artistOpts = `<option value="">— 选择画师 —</option>` +
+          `<optgroup label="单人画师">${artists.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join("")}</optgroup>` +
+          `<optgroup label="画师组合">${groups.map(g => `<option value="${g.id}">[组合] ${escapeHtml(g.name)}</option>`).join("")}</optgroup>`;
 
-      if (autoFixed.length > 0) {
-        showToast(`✅ 已修复 ${autoFixed.length} 件作品关联${unfixable.length > 0 ? `，${unfixable.length} 件需手动处理` : ""}`);
+        body.innerHTML = `
+          <div style="margin-bottom:12px;padding:10px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--text2);">
+            ${autoFixedCount > 0 ? `✅ 已自动修复 ${autoFixedCount} 件（标题匹配画师名）<br>` : ""}
+            ⚠ 以下 ${repairPendingList.length} 件作品无法自动匹配，请手动选择正确的画师：
+          </div>
+          ${repairPendingList.map((aw, i) => `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px;background:var(--surface2);border-radius:6px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(aw.title || "无标题")}</div>
+                <div style="font-size:11px;color:var(--text3);">异常ID: ${aw.artistId}</div>
+              </div>
+              <select class="form-input repair-select" data-aw-id="${aw.id}" style="width:200px;flex:none;">${artistOpts}</select>
+            </div>
+          `).join("")}
+        `;
+        openModal("repairModal");
+      } else if (autoFixedCount > 0) {
+        showToast(`✅ 已自动修复 ${autoFixedCount} 件作品关联`);
         renderGallery();
         renderAdmin();
       } else {
-        showToast(`发现 ${orphaned.length} 件异常，但无法自动匹配`, "error");
+        showToast("所有作品关联正常，无需修复");
       }
-      console.log(msg);
+    });
+
+    document.getElementById("saveRepairBtn")?.addEventListener("click", async () => {
+      let fixedCount = 0;
+      const selects = document.querySelectorAll(".repair-select");
+      for (const sel of selects) {
+        const awId = sel.dataset.awId;
+        const newArtistId = sel.value;
+        if (!newArtistId) continue;
+        const aw = artworks.find(a => a.id === awId);
+        if (aw) {
+          aw.artistId = newArtistId;
+          await dbPut("artworks", aw);
+          fixedCount++;
+        }
+      }
+      closeModal("repairModal");
+      if (fixedCount > 0) {
+        showToast(`✅ 已手动修复 ${fixedCount} 件作品关联`);
+        renderGallery();
+        renderAdmin();
+      } else {
+        showToast("未选择任何画师，未做修改");
+      }
     });
 
     // ===== 手动压缩数据库中的图片（转 JPG，带进度条）=====
