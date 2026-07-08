@@ -2159,7 +2159,7 @@
             <button class="btn btn-primary btn-sm" id="importDataBtn">📂 覆盖式导入</button>
             <button class="btn btn-ghost btn-sm" id="dedupImportBtn" title="在已有数据基础上自动去重合并">🔁 去重式导入</button>
             <button class="btn btn-ghost btn-sm" id="recompressBtn" title="把已存储的图片全部重新压缩，大幅减小占用空间">🗜 重压缩已有图片</button>
-            <button class="btn btn-ghost btn-sm" id="manualCompressBtn" title="手动选择图片压缩为JPG">📷 手动压缩图片</button>
+            <button class="btn btn-ghost btn-sm" id="manualCompressBtn" title="选择数据库中的图片进行压缩">📷 选择压缩图片</button>
             <button class="btn btn-ghost btn-sm" id="compressDiscardedBtn" title="把废弃画师的图片压缩到极小体积">🗑 压缩废弃画师</button>
             <button class="btn btn-ghost btn-sm" id="exportArtistsTxtBtn" title="导出全部画师名为txt（一行一个）">📝 导出画师txt</button>
             <button class="btn btn-ghost btn-sm" id="exportDiscardedBtn" title="仅导出被标为废弃的画师名">📤 导出废弃画师</button>
@@ -2174,7 +2174,6 @@
             <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" style="display: none;">
             <input type="file" id="importFileInput" accept=".json" style="display: none;">
             <input type="file" id="dedupImportFileInput" accept=".json" style="display: none;">
-            <input type="file" id="manualCompressInput" accept="image/*" multiple style="display: none;">
           </div>
         </div>
         <div class="content" id="adminContent"></div>
@@ -4992,42 +4991,79 @@ color:var(--text3);
       showToast(`已导出 ${discarded.length} 位废弃画师`);
     });
 
-    // ===== 手动压缩图片（转 JPG，带进度条）=====
-    document.getElementById("manualCompressBtn")?.addEventListener("click", () => document.getElementById("manualCompressInput").click());
-    document.getElementById("manualCompressInput")?.addEventListener("change", async (e) => {
-      const files = [...e.target.files];
-      e.target.value = "";
-      if (files.length === 0) return;
-      showProgress("正在压缩图片…", 0, files.length);
-      const results = [];
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i];
+    // ===== 手动压缩数据库中的图片（转 JPG，带进度条）=====
+    document.getElementById("manualCompressBtn")?.addEventListener("click", async () => {
+      if (!artworks.length) { showToast("数据库中没有图片", "error"); return; }
+
+      const scope = confirm("压缩范围：\n[确定] 全部图片\n[取消] 指定画师");
+      let targetIds = [];
+      if (scope) {
+        targetIds = artworks.map(a => a.id);
+      } else {
+        const names = artists.map(a => `${a.name}`).join("\n");
+        const selectedName = prompt("请输入要压缩的画师名：\n\n可选画师：\n" + names);
+        if (!selectedName) return;
+        const artist = artists.find(a => a.name === selectedName.trim());
+        if (!artist) { showToast("未找到该画师", "error"); return; }
+        targetIds = artworks.filter(a => a.artistId === artist.id).map(a => a.id);
+      }
+
+      if (!targetIds.length) { showToast("没有符合条件的图片", "error"); return; }
+
+      const qualityChoice = prompt(`将压缩 ${targetIds.length} 张图片\n请输入压缩质量：\n1 - 高质量(0.92)\n2 - 中等(0.82)\n3 - 低质量(0.6)`);
+      const quality = { "1": 0.92, "2": 0.82, "3": 0.6 }[qualityChoice] || 0.92;
+
+      if (!confirm(`确定压缩 ${targetIds.length} 张图片？`)) return;
+
+      showProgress("正在压缩图片…", 0, targetIds.length);
+      let done = 0, savedBytes = 0;
+
+      for (const id of targetIds) {
         try {
-          // 仅转 JPG，保持较高清晰度（quality 0.92），不大幅缩小
-          const dataUrl = await compressImage(f, 9999, 9999, 0.92);
-          const origSize = f.size;
-          // 估算压缩后大小
-          const base64 = dataUrl.split(",")[1];
-          const newSize = Math.round(base64.length * 0.75);
-          results.push({ name: f.name.replace(/\.[^.]+$/, ".jpg"), dataUrl, origSize, newSize });
-        } catch (err) {
-          console.error(err);
+          const row = await dbGetOne("images", id);
+          if (!row?.data) { done++; continue; }
+          const oldData = row.data;
+          const oldLen = oldData.length;
+
+          const newData = await new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const maxW = 9999, maxH = 9999;
+              let { width, height } = img;
+              const ratio = Math.min(1, maxW / width, maxH / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+              const canvas = document.createElement("canvas");
+              canvas.width = width; canvas.height = height;
+              const rctx = canvas.getContext("2d");
+              rctx.fillStyle = "#ffffff";
+              rctx.fillRect(0, 0, width, height);
+              rctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", quality));
+            };
+            img.onerror = () => resolve(oldData);
+            img.src = oldData;
+          });
+
+          if (newData.length < oldLen && newData.length > oldLen * 0.15) {
+            savedBytes += oldLen - newData.length;
+            await dbPut("images", { id, data: newData });
+            imgCache.delete(id);
+            delete images[id];
+            _cacheSet(id, newData);
+          }
+        } catch (e) {
+          console.warn("压缩失败 id=" + id, e);
         }
-        showProgress("正在压缩图片…", i + 1, files.length);
-        await new Promise(r => setTimeout(r, 10)); // 让 UI 更新
+        done++;
+        showProgress("正在压缩图片…", done, targetIds.length);
+        await new Promise(r => setTimeout(r, 10));
       }
+
       hideProgress();
-      // 触发下载
-      for (const r of results) {
-        const blob = dataUrlToBlob(r.dataUrl);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = r.name; a.click();
-        URL.revokeObjectURL(url);
-      }
-      const totalOrig = results.reduce((s, r) => s + r.origSize, 0);
-      const totalNew = results.reduce((s, r) => s + r.newSize, 0);
-      showToast(`✅ 已压缩 ${results.length} 张图片， ${(totalOrig / 1048576).toFixed(2)}MB → ${(totalNew / 1048576).toFixed(2)}MB`);
+      const savedMB = (savedBytes / 1024 / 1024 * 0.75).toFixed(1);
+      renderGallery();
+      showToast(`✅ 压缩完成！${done} 张图，节省约 ${savedMB} MB`, "success");
     });
 
     function dataUrlToBlob(dataUrl) {
@@ -5052,15 +5088,17 @@ color:var(--text3);
       for (let i = 0; i < awList.length; i++) {
         const aw = awList[i];
         try {
-          const dataUrl = await getImage(aw.id);
-          if (dataUrl) {
-            // 极小体积：缩小尺寸 + 低质量，使用 Image 元素确保兼容
-            const compressed = await compressDataUrl(dataUrl, 400, 400, 0.4);
-            if (compressed && compressed !== dataUrl) {
-              images[aw.id] = compressed;
-              await dbPut("images", { id: aw.id, data: compressed });
-              successCount++;
-            }
+          const row = await dbGetOne("images", aw.id);
+          if (!row?.data) { continue; }
+          const dataUrl = row.data;
+          // 极小体积：缩小尺寸 + 低质量，使用 Image 元素确保兼容
+          const compressed = await compressDataUrl(dataUrl, 400, 400, 0.4);
+          if (compressed && compressed !== dataUrl) {
+            await dbPut("images", { id: aw.id, data: compressed });
+            imgCache.delete(aw.id);
+            delete images[aw.id];
+            _cacheSet(aw.id, compressed);
+            successCount++;
           }
         } catch (err) { console.error("压缩失败:", aw.id, err); }
         showProgress("压缩废弃画师作品中…", i + 1, awList.length);
