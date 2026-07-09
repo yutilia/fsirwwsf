@@ -3702,7 +3702,9 @@
           const removeBtn = existingCard.querySelector(".upload-card-remove");
           if (removeBtn) {
             removeBtn.onclick = () => {
-              uploadFiles = uploadFiles.filter(x => x.uploadId !== fi.uploadId);
+              const uploadId = existingCard.dataset.id;
+              if (!uploadId) return;
+              uploadFiles = uploadFiles.filter(x => x.uploadId !== uploadId);
               renderUploadList();
             };
           }
@@ -3851,12 +3853,15 @@ ${escapeHtml(a.name)}
         else { f.tags = f.tags.filter(t => t !== tid); }
       }));
       // 移除按钮
-      card.querySelector(".upload-card-remove")?.addEventListener("click", () => {
-        const uploadId = card.dataset.id;
-        if (!uploadId) return;
-        uploadFiles = uploadFiles.filter(x => x.uploadId !== uploadId);
-        renderUploadList();
-      });
+      const removeBtn = card.querySelector(".upload-card-remove");
+      if (removeBtn) {
+        removeBtn.onclick = () => {
+          const uploadId = card.dataset.id;
+          if (!uploadId) return;
+          uploadFiles = uploadFiles.filter(x => x.uploadId !== uploadId);
+          renderUploadList();
+        };
+      }
       // 实时搜索已有画师
       const artistSearchInput = card.querySelector(".upload-artist-search");
       const artistDrop = card.querySelector(`#artistDrop_${idx}`) || card.querySelector(".artist-search-dropdown");
