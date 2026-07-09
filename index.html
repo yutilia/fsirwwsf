@@ -1908,6 +1908,7 @@
             <option value="all">全部画师</option>
             <option value="active">仅活跃</option>
             <option value="discarded">仅废弃</option>
+            <option value="noArtwork">无作品</option>
           </select>
         </div>
         <div class="content" id="artistsContent"></div>
@@ -2942,9 +2943,11 @@
       const q = artistSearchQuery.toLowerCase();
       let list = artists.filter(a => {
         const matchQ = !q || normForSearch(a.name).includes(normForSearch(q)) || normForSearch(a.alias).includes(normForSearch(q));
+        const awCount = artworks.filter(w => w.artistId === a.id).length;
         const matchF = artistFilterMode === "all"
           || (artistFilterMode === "active" && !a.discarded)
-          || (artistFilterMode === "discarded" && a.discarded);
+          || (artistFilterMode === "discarded" && a.discarded)
+          || (artistFilterMode === "noArtwork" && awCount === 0);
         return matchQ && matchF;
       });
       if (artistSortMode === "letterAsc") {
@@ -2975,12 +2978,16 @@
           : `<button class="btn btn-ghost btn-sm edit-artist-btn" data-id="${a.id}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
             </button>`;
-        html += `<div class="card" ${a.discarded ? 'style="border-color:var(--danger);opacity:.7;"' : ""}>
+        const discardedStyle = a.discarded ? 'style="border-color:var(--danger);background:rgba(239,68,68,0.06);opacity:0.85;"' : "";
+        html += `<div class="card" ${discardedStyle}>
             <div class="card-body" style="display:flex;gap:14px;align-items:center;">
                 ${thumbHtml}
                 <div style="flex:1;min-width:0;">
-                    <div style="font-family:'Noto Serif JP',serif;font-size:15px;">${escapeHtml(a.name)} ${a.discarded ? '<span style="color:var(--danger);font-size:11px;">[废弃]</span>' : ""}</div>
-                    <div style="color:var(--text2);font-size:12px;margin-top:3px;">${escapeHtml(a.alias || "—")}</div>
+                    <div style="font-family:'Noto Serif JP',serif;font-size:15px;display:flex;align-items:center;gap:6px;">
+                        ${escapeHtml(a.name)} 
+                        ${a.discarded ? '<span style="color:var(--danger);font-size:12px;font-weight:bold;background:rgba(239,68,68,0.15);padding:1px 6px;border-radius:3px;">🗑 废弃</span>' : ""}
+                    </div>
+                    <div style="color:${a.discarded ? "var(--text3)" : "var(--text2)"};font-size:12px;margin-top:3px;">${escapeHtml(a.alias || "—")}</div>
                     <div style="color:var(--text3);font-size:11px;margin-top:4px;">${count} 件作品 · √${r.up} ×${r.down}</div>
                 </div>
                 ${actionBtn}
@@ -3817,91 +3824,47 @@ ${escapeHtml(a.name)}
     }
 
     function _bindCardEvents(card, idx) {
+      const getFile = () => uploadFiles.find(f => f.uploadId === card.dataset.id);
       // 作品名
-      card.querySelector(`.upload-title`)?.addEventListener("input", e => { uploadFiles[idx].title = e.target.value; });
+      card.querySelector(`.upload-title`)?.addEventListener("input", e => { const f = getFile(); if (f) f.title = e.target.value; });
       // 画师名输入：标记用户已编辑
       card.querySelector(`.upload-artist-name`)?.addEventListener("input", e => {
         e.target.dataset.userEdited = "1";
-        uploadFiles[idx].extractedArtist = e.target.value;
+        const f = getFile(); if (f) f.extractedArtist = e.target.value;
       });
       // 备注
-      card.querySelector(`.upload-note`)?.addEventListener("input", e => { uploadFiles[idx].note = e.target.value; });
+      card.querySelector(`.upload-note`)?.addEventListener("input", e => { const f = getFile(); if (f) f.note = e.target.value; });
       // 标签checkbox
       card.querySelectorAll(".upload-tag-cb").forEach(cb => cb.addEventListener("change", e => {
         const tid = e.target.dataset.tid;
-        if (e.target.checked) { if (!uploadFiles[idx].tags.includes(tid)) uploadFiles[idx].tags.push(tid); }
-        else { uploadFiles[idx].tags = uploadFiles[idx].tags.filter(t => t !== tid); }
+        const f = getFile();
+        if (!f) return;
+        if (e.target.checked) { if (!f.tags.includes(tid)) f.tags.push(tid); }
+        else { f.tags = f.tags.filter(t => t !== tid); }
       }));
       // 移除按钮
       card.querySelector(".upload-card-remove")?.addEventListener("click", () => {
-
-        const currentFile = uploadFiles[idx];
-        if (!currentFile) return;
-
-        uploadFiles = uploadFiles.filter(
-          x => x.uploadId !== currentFile.uploadId
-        );
-
+        const uploadId = card.dataset.id;
+        if (!uploadId) return;
+        uploadFiles = uploadFiles.filter(x => x.uploadId !== uploadId);
         renderUploadList();
-
       });
       // 实时搜索已有画师
       const artistSearchInput = card.querySelector(".upload-artist-search");
       const artistDrop = card.querySelector(`#artistDrop_${idx}`) || card.querySelector(".artist-search-dropdown");
       if (artistSearchInput && artistDrop) {
         artistSearchInput.addEventListener("input", () => {
-
-          const q = artistSearchInput.value
-            .trim()
-            .toLowerCase();
-
-          const matched = !q
-            ? artists
-            : artists.filter(
-              a => normForSearch(a.name).includes(normForSearch(q))
-            );
-
+          const q = artistSearchInput.value.trim().toLowerCase();
+          const matched = !q ? artists : artists.filter(a => normForSearch(a.name).includes(normForSearch(q)));
           artistDrop.style.display = "block";
-
-          artistDrop.innerHTML =
-            matched.length
-              ?
-
-              matched.map(a => `
-
-<div
-data-id="${a.id}"
-class="as-item"
-style="
-padding:8px 12px;
-cursor:pointer;
-font-size:12px;
-">
-
-${escapeHtml(a.name)}
-
-</div>
-
-`).join("")
-
-              :
-
-              `<div style="
-padding:10px;
-font-size:12px;
-color:var(--text3);
-">
-
-无结果
-
-</div>`;
-          artistDrop.style.display = "block";
-
+          artistDrop.innerHTML = matched.length
+            ? matched.map(a => `<div data-id="${a.id}" class="as-item" style="padding:8px 12px;cursor:pointer;font-size:12px;">${escapeHtml(a.name)}</div>`).join("")
+            : `<div style="padding:10px;font-size:12px;color:var(--text3);">无结果</div>`;
           artistDrop.querySelectorAll(".as-item").forEach(el => {
             el.addEventListener("mouseenter", () => el.style.background = "var(--surface3)");
             el.addEventListener("mouseleave", () => el.style.background = "");
             el.addEventListener("mousedown", () => {
-              uploadFiles[idx].artistId = el.dataset.id;
+              const f = getFile(); if (f) f.artistId = el.dataset.id;
               const nameInput = card.querySelector(".upload-artist-name");
               if (nameInput) { nameInput.value = ""; nameInput.placeholder = `已绑: ${artists.find(a => a.id === el.dataset.id)?.name}`; }
               artistSearchInput.value = ""; artistDrop.style.display = "none";
@@ -3915,39 +3878,17 @@ color:var(--text3);
           }
         });
       }
-      card.querySelector(".artist-all-select")
-        ?.addEventListener("change", e => {
-
-          if (!e.target.value) return;
-
-          uploadFiles[idx].artistId =
-            e.target.value;
-
-          const artist =
-            artists.find(
-              a => a.id === e.target.value
-            );
-
-          const nameInput =
-            card.querySelector(
-              ".upload-artist-name"
-            );
-
-          if (nameInput) {
-
-            nameInput.value = "";
-
-            nameInput.placeholder =
-              `已绑: ${artist?.name || ""}`;
-
-          }
-
-          showToast("画师已绑定");
-
-        });
+      card.querySelector(".artist-all-select")?.addEventListener("change", e => {
+        if (!e.target.value) return;
+        const f = getFile(); if (f) f.artistId = e.target.value;
+        const artist = artists.find(a => a.id === e.target.value);
+        const nameInput = card.querySelector(".upload-artist-name");
+        if (nameInput) { nameInput.value = ""; nameInput.placeholder = `已绑: ${artist?.name || ""}`; }
+        showToast("画师已绑定");
+      });
       // 组合下拉
       card.querySelector(".upload-group-select")?.addEventListener("change", e => {
-        if (e.target.value) uploadFiles[idx].artistId = e.target.value;
+        if (e.target.value) { const f = getFile(); if (f) f.artistId = e.target.value; }
       });
       // 折叠搜索框
       card.querySelector(".artist-search-toggle")?.addEventListener("click", e => {
@@ -3962,25 +3903,23 @@ color:var(--text3);
         const nameInput = card.querySelector(".upload-artist-name");
         const rawName = nameInput?.value.trim() || "";
         if (!rawName) { showToast("请先输入画师名", "error"); return; }
-        const name = sanitizeArtistName(rawName); // 空格转下划线，去末尾空格
+        const name = sanitizeArtistName(rawName);
         if (name !== rawName) {
           nameInput.value = name;
           showToast(`画师名已规范化：${name}`);
         }
-        // 检查是否已存在
         const existing = artists.find(a => a.name === name);
         if (existing) {
-          uploadFiles[idx].artistId = existing.id;
+          const f = getFile(); if (f) f.artistId = existing.id;
           nameInput.value = ""; nameInput.placeholder = `已绑: ${existing.name}`;
           showToast("画师已存在，已自动绑定"); return;
         }
-        // 直接创建画师（仅名字，无额外信息）
         const newArtist = { id: uid(), name, alias: "", bio: "", link: "", note: "" };
         await dbPut("artists", newArtist);
         artists.push(newArtist);
         renderArtists();
         updateStats();
-        uploadFiles[idx].artistId = newArtist.id;
+        const f = getFile(); if (f) f.artistId = newArtist.id;
         nameInput.value = ""; nameInput.placeholder = `已绑: ${newArtist.name}`;
         showToast(`✅ 已创建画师：${name}`);
       });
@@ -4016,7 +3955,8 @@ color:var(--text3);
       card.querySelectorAll(".paste-note-btn").forEach(btn => btn.addEventListener("click", () => {
         const val = btn.dataset.val;
         if (!val) return;
-        const fi = uploadFiles[idx];
+        const fi = getFile();
+        if (!fi) return;
         fi.note = fi.note ? fi.note + "\n" + val : val;
         const textarea = card.querySelector(".upload-note");
         if (textarea) textarea.value = fi.note;
