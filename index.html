@@ -3683,7 +3683,7 @@
           const existingCard = existingCards[fi.uploadId];
           delete existingCards[fi.uploadId];
           // 更新提取的画师名到输入框（如果用户未手动修改过）
-          const nameInput = existingCard.querySelector(`.upload-artist-name[data-idx="${idx}"]`);
+          const nameInput = existingCard.querySelector(".upload-artist-name");
           if (nameInput && fi.extractedArtist && !nameInput.dataset.userEdited) {
             nameInput.value = fi.extractedArtist;
           }
@@ -3697,6 +3697,14 @@
             } else if (!existingArtist && oldBadge) {
               oldBadge.remove();
             }
+          }
+          // 重新绑定删除按钮事件（确保复用卡片也能正常删除）
+          const removeBtn = existingCard.querySelector(".upload-card-remove");
+          if (removeBtn) {
+            removeBtn.onclick = () => {
+              uploadFiles = uploadFiles.filter(x => x.uploadId !== fi.uploadId);
+              renderUploadList();
+            };
           }
           return;
         }
