@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>画师测试生成</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0d0b14;
+      --surface: #16131f;
+      --surface2: #1e1a2b;
+      --surface3: #272235;
+      --border: #322a4a;
+      --accent: #a07dff;
+      --accent2: #5fd3ff;
+      --accent-rgb: 160, 125, 255;
+      --text: #eceaf2;
+      --text2: #a59cc0;
+      --text3: #6b6285;
+      --danger: #ff6b8a;
+      --success: #5fe0a0;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: radial-gradient(1200px 800px at 80% -10%, rgba(95, 211, 255, 0.10), transparent 60%),
+        radial-gradient(1000px 700px at 0% 100%, rgba(160, 125, 255, 0.12), transparent 60%), var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    header {
+      padding: 0.9rem 1.4rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      background: rgba(13, 11, 20, 0.7);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+
+    .panel h2 {
+      font-size: 0.85rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text2);
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .field {
+      margin-bottom: 0.85rem;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text2);
+      margin-bottom: 0.3rem;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 0.88rem;
+      font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      line-height: 1.45;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.6rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: var(--surface3);
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent), #7d5fff);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.12);
+      box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.4);
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.78rem;
+    }
+
+    .btn-xs {
+      padding: 0.2rem 0.4rem;
+      font-size: 0.72rem;
+    }
+
+    .btn-ghost {
+      background: transparent;
+    }
+
+    .btn-danger {
+      background: rgba(255, 107, 138, 0.15);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 107, 138, 0.25);
+    }
+
+    /* 抽取卡片 */
+    #diceResults {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.6rem;
+    }
+
+    .dice-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.7rem;
+    }
+
+    .dice-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .dice-card-index {
+      font-size: 0.75rem;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    .dice-card-name {
+      flex: 1;
+      font-weight: 600;
+      font-size: 0.9rem;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .dice-card-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .dice-card-body {
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .weight-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex: 1;
+    }
+
+    .weight-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      padding: 0;
+    }
+
+    .weight-input {
+      width: 60px;
+      text-align: center;
+      padding: 0.3rem;
+      font-size: 0.85rem;
+    }
+
+    .pin-btn {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.4rem;
+    }
+
+    .pin-btn.active {
+      background: rgba(160, 125, 255, 0.2);
+      border-color: var(--accent);
+    }
+
+    /* 画师作品预览 */
+    .artist-preview {
+      margin-top: 0.5rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.3rem;
+    }
+
+    .preview-img {
+      aspect-ratio: 2/3;
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--surface3);
+      cursor: pointer;
+      border: 1px solid transparent;
+      width: 100%;
+    }
+
+    .preview-img:hover {
+      border-color: var(--accent);
+    }
+
+    .preview-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* 负面词预设 */
+    .neg-presets {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
+
+    .neg-preset-btn {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .neg-preset-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .neg-preset-btn .delete-preset {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 14px;
+      height: 14px;
+      font-size: 10px;
+      line-height: 12px;
+      background: var(--danger);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .neg-preset-btn .edit-preset {
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      width: 14px;
+      height: 14px;
+      font-size: 10px;
+      line-height: 12px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .neg-preset-btn:hover .delete-preset,
+    .neg-preset-btn:hover .edit-preset {
+      opacity: 1;
+    }
+
+    /* 生成区域 */
+    .image-area {
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .result-img {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: var(--radius);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      object-fit: contain;
+    }
+
+    .placeholder {
+      color: var(--text3);
+      text-align: center;
+      padding: 3rem 1rem;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+    }
+
+    .placeholder .big {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 0.8rem;
+      background: var(--surface2);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      color: var(--text2);
+      margin-top: 0.8rem;
+      min-height: 38px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text3);
+      flex-shrink: 0;
+    }
+
+    .dot.loading {
+      background: var(--accent2);
+      animation: pulse 1s infinite;
+    }
+
+    .dot.ok {
+      background: var(--success);
+    }
+
+    .dot.err {
+      background: var(--danger);
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .progress-wrap {
+      width: 100%;
+      max-width: 500px;
+      display: none;
+    }
+
+    .progress-wrap.active {
+      display: block;
+    }
+
+    .progress {
+      height: 6px;
+      background: var(--surface3);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 30%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 999px;
+      animation: indeterminate 1.4s infinite;
+    }
+
+    @keyframes indeterminate {
+      0% {
+        transform: translateX(-100%);
+      }
+
+      100% {
+        transform: translateX(400%);
+      }
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.7rem 1.2rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s;
+      z-index: 200;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast.err {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .toast.ok {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    /* 模态框 */
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1rem;
+    }
+
+    .modal-bg.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      max-width: 500px;
+      width: 100%;
+    }
+
+    .modal h3 {
+      margin-bottom: 0.8rem;
+      color: var(--text);
+    }
+
+    .modal .btn {
+      margin-top: 0.5rem;
+    }
+
+    .img-modal-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .img-modal-content img {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: var(--radius);
+    }
+
+    .result-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      color: var(--text2);
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="logo">◆ 画师测试生成</div>
+    <div class="header-actions">
+      <span class="chip" id="dataStats" style="font-size:0.8rem;color:var(--text2)">加载中...</span>
+      <button class="btn btn-ghost btn-sm" id="btnRefresh">🔄 刷新数据</button>
+      <button class="btn btn-ghost" id="btnBack">← 返回画师库</button>
+      <button class="btn btn-ghost" id="btnSettings">⚙ 设置</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- 左侧面板 -->
+    <div class="panel">
+      <h2>◆ 抽取设置</h2>
+      <div class="field">
+        <label>抽取数量：</label>
+        <input type="number" id="diceCount" value="5" min="1" max="30">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>权重范围：</label>
+          <input type="number" id="weightMin" value="0.1" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>~</label>
+          <input type="number" id="weightMax" value="2.0" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="field">
+        <label>特殊权重人数：</label>
+        <div class="row" style="gap:0.3rem">
+          <input type="number" id="diceSpecialCountMin" value="1" min="0" max="30" style="flex:1">
+          <span>~</span>
+          <input type="number" id="diceSpecialCountMax" value="2" min="0" max="30" style="flex:1">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>分割点 Y：</label>
+          <input type="number" id="diceWeightSplit" value="1.0" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>方向：</label>
+          <select id="diceSpecialDirection">
+            <option value="above">特殊 ≥ Y</option>
+            <option value="below">特殊 ≤ Y</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btnDice" style="width:100%;margin-top:0.5rem">🎲 抽取画师</button>
+      <button class="btn btn-ghost" id="btnClear" style="width:100%;margin-top:0.3rem">清空结果</button>
+
+      <div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:1rem;">
+        <h2>◆ 导入画师串</h2>
+        <textarea id="importStr" placeholder="0.2::artist:agfdgf ::, 0.79::artist:sheya ::..."
+          style="min-height:60px;margin-bottom:0.5rem"></textarea>
+        <button class="btn btn-primary btn-sm" id="btnImport" style="width:100%">导入</button>
+      </div>
+    </div>
+
+    <!-- 中间抽取结果 -->
+    <div class="panel">
+      <h2>◆ 抽取结果</h2>
+      <div id="diceResults"></div>
+      <div id="diceEmpty" class="placeholder" style="margin-top:1rem">
+        <div class="big">🎲</div>
+        <div>点击左侧「抽取画师」或导入画师串</div>
+      </div>
+    </div>
+
+    <!-- 右侧生成面板 -->
+    <div class="panel">
+      <h2>◆ 生成设置</h2>
+      <div class="field">
+        <label>固定正面词</label>
+        <textarea id="fixedPrompt" placeholder="1girl, blonde hair, blue eyes, smile..."></textarea>
+      </div>
+      <div class="field">
+        <label>负面词预设 <button class="btn btn-xs" id="btnAddPreset" style="margin-left:0.3rem">+ 添加</button></label>
+        <div class="neg-presets" id="negPresetBtns"></div>
+        <textarea id="negativePrompt" placeholder="lowres, bad anatomy, bad hands..."></textarea>
+        <button class="btn btn-xs" id="btnSaveCurrentPreset" style="margin-top:0.3rem">保存当前为新预设</button>
+      </div>
+      <div class="row-3">
+        <div class="field">
+          <label>模型</label>
+          <select id="model">
+            <option value="nai-diffusion-4-5-full">V4.5 Full</option>
+            <option value="nai-diffusion-4-5-curated">V4.5 Curated</option>
+            <option value="nai-diffusion-4-full">V4 Full</option>
+            <option value="nai-diffusion-3">V3</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>分辨率</label>
+          <select id="resolution">
+            <option value="832x1216">832×1216</option>
+            <option value="1216x832">1216×832</option>
+            <option value="1024x1024">1024×1024</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>采样器</label>
+          <select id="sampler">
+            <option value="k_euler">Euler</option>
+            <option value="k_euler_ancestral">Euler A</option>
+            <option value="k_dpmpp_2m">DPM++ 2M</option>
+            <option value="k_dpmpp_2m_sde">DPM++ 2M SDE</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>步数</label>
+          <input type="number" id="steps" value="28" min="1" max="50">
+        </div>
+        <div class="field">
+          <label>CFG</label>
+          <input type="number" id="scale" value="5" min="0" max="10" step="0.5">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btnGenerate" style="width:100%;margin-top:0.5rem">✦ 生成图片</button>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress">
+          <div class="progress-bar"></div>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">就绪</span>
+      </div>
+
+      <div class="image-area" id="imageArea">
+        <div class="placeholder" id="placeholder">
+          <div class="big">✦</div>
+          <div>抽取画师后点击「生成图片」</div>
+        </div>
+        <img class="result-img" id="resultImg" style="display:none" alt="生成结果">
+        <div class="result-meta" id="resultMeta" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div class="modal-bg" id="settingsModal">
+    <div class="modal">
+      <h3>⚙ 设置</h3>
+      <div class="field">
+        <label>NovelAI Token</label>
+        <input type="password" id="token" placeholder="pst-...">
+        <div style="font-size:0.75rem;color:var(--text3);margin-top:0.2rem">登录 NovelAI 后获取持久令牌</div>
+      </div>
+      <div class="field">
+        <label>API 基础地址</label>
+        <input type="text" id="apiBase" value="https://image.novelai.net">
+      </div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="btn btn-ghost" id="btnCloseSettings">取消</button>
+        <button class="btn btn-primary" id="btnSaveSettings">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片预览弹窗 -->
+  <div class="modal-bg" id="imgModal">
+    <div class="modal img-modal-content">
+      <img id="modalImg" alt="预览">
+      <button class="btn btn-ghost" id="btnCloseImg" style="margin-top:0.5rem">关闭</button>
+    </div>
+  </div>
+
+  <!-- 添加预设弹窗 -->
+  <div class="modal-bg" id="addPresetModal">
+    <div class="modal">
+      <h3>添加负面词预设</h3>
+      <div class="field">
+        <label>预设名称</label>
+        <input type="text" id="presetName" placeholder="例如：我的预设">
+      </div>
+      <div class="field">
+        <label>负面词内容</label>
+        <textarea id="presetContent" placeholder="lowres, bad anatomy, bad hands..."
+          style="min-height:100px"></textarea>
+      </div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="btn btn-ghost" id="btnCancelPreset">取消</button>
+        <button class="btn btn-primary" id="btnConfirmPreset">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑预设弹窗 -->
+  <div class="modal-bg" id="editPresetModal">
+    <div class="modal">
+      <h3>编辑负面词预设</h3>
+      <div class="field">
+        <label>预设名称</label>
+        <input type="text" id="editPresetName" placeholder="例如：我的预设">
+      </div>
+      <div class="field">
+        <label>负面词内容</label>
+        <textarea id="editPresetContent" placeholder="lowres, bad anatomy, bad hands..."
+          style="min-height:100px"></textarea>
+      </div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem">
+        <button class="btn btn-ghost" id="btnCancelEditPreset">取消</button>
+        <button class="btn btn-primary" id="btnConfirmEditPreset">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const LS_KEY = 'artist_gen_settings_v1';
+    const NEG_PRESETS_KEY = 'artist_gen_neg_presets_v1';
+
+    let settings = { token: '', apiBase: 'https://image.novelai.net', saveToken: true };
+    let artists = [], groups = [], artworks = [], images = {};
+    let diceResults = [];
+    let db = null;
+
+    // 默认负面词预设
+    const DEFAULT_NEG_PRESETS = [
+      { name: 'Heavy', text: 'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name' },
+      { name: 'Light', text: 'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality' },
+      { name: 'Human', text: 'lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, deformed, disfigured, poorly drawn face, mutation, mutated, extra limb, ugly, poorly drawn hands, missing limb, floating limbs, disconnected limbs, malformed hands, blur, out of focus, long neck, long body' },
+      { name: 'None', text: '' }
+    ];
+
+    let negPresets = [];
+    let currentPresetIdx = 0;
+
+    // 加载设置
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      settings = { ...settings, ...saved };
+    } catch (e) { }
+    $('token').value = settings.token || '';
+    $('apiBase').value = settings.apiBase || 'https://image.novelai.net';
+
+    // 加载负面词预设
+    function loadNegPresets() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(NEG_PRESETS_KEY) || '[]');
+        negPresets = saved.length > 0 ? saved : DEFAULT_NEG_PRESETS;
+      } catch (e) {
+        negPresets = DEFAULT_NEG_PRESETS;
+      }
+    }
+
+    function saveNegPresets() {
+      try {
+        localStorage.setItem(NEG_PRESETS_KEY, JSON.stringify(negPresets));
+      } catch (e) { }
+    }
+
+    function renderNegPresets() {
+      const btns = $('negPresetBtns');
+      btns.innerHTML = negPresets.map((p, i) => `
+        <button class="neg-preset-btn${i === currentPresetIdx ? ' active' : ''}" data-idx="${i}">
+          ${i + 1}. ${p.name}
+          <span class="edit-preset" data-edit="${i}">✎</span>
+          ${i >= DEFAULT_NEG_PRESETS.length ? '<span class="delete-preset" data-del="' + i + '">×</span>' : ''}
+        </button>
+      `).join('');
+
+      btns.querySelectorAll('.neg-preset-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          if (e.target.classList.contains('delete-preset') || e.target.classList.contains('edit-preset')) return;
+          const idx = parseInt(btn.dataset.idx);
+          currentPresetIdx = idx;
+          $('negativePrompt').value = negPresets[idx].text;
+          renderNegPresets();
+        });
+      });
+
+      btns.querySelectorAll('.delete-preset').forEach(delBtn => {
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(delBtn.dataset.del);
+          if (idx >= DEFAULT_NEG_PRESETS.length) {
+            negPresets.splice(idx, 1);
+            if (currentPresetIdx >= negPresets.length) currentPresetIdx = negPresets.length - 1;
+            if (currentPresetIdx < 0) currentPresetIdx = 0;
+            $('negativePrompt').value = negPresets[currentPresetIdx].text;
+            saveNegPresets();
+            renderNegPresets();
+            toast('预设已删除');
+          }
+        });
+      });
+
+      btns.querySelectorAll('.edit-preset').forEach(editBtn => {
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(editBtn.dataset.edit);
+          editPresetIdx = idx;
+          $('editPresetName').value = negPresets[idx].name;
+          $('editPresetContent').value = negPresets[idx].text;
+          $('editPresetModal').classList.add('active');
+        });
+      });
+    }
+
+    let editPresetIdx = -1;
+
+    // 添加预设弹窗
+    $('btnAddPreset').addEventListener('click', () => {
+      $('presetName').value = '';
+      $('presetContent').value = $('negativePrompt').value;
+      $('addPresetModal').classList.add('active');
+    });
+
+    $('btnCancelPreset').addEventListener('click', () => {
+      $('addPresetModal').classList.remove('active');
+    });
+
+    $('btnConfirmPreset').addEventListener('click', () => {
+      const name = $('presetName').value.trim();
+      const content = $('presetContent').value.trim();
+      if (!name) { toast('请输入预设名称', 'err'); return; }
+      negPresets.push({ name, text: content });
+      currentPresetIdx = negPresets.length - 1;
+      saveNegPresets();
+      renderNegPresets();
+      $('negativePrompt').value = content;
+      $('addPresetModal').classList.remove('active');
+      toast('预设已添加');
+    });
+
+    // 编辑预设弹窗
+    $('btnCancelEditPreset').addEventListener('click', () => {
+      $('editPresetModal').classList.remove('active');
+    });
+
+    $('btnConfirmEditPreset').addEventListener('click', () => {
+      const name = $('editPresetName').value.trim();
+      const content = $('editPresetContent').value.trim();
+      if (!name) { toast('请输入预设名称', 'err'); return; }
+      negPresets[editPresetIdx] = { name, text: content };
+      currentPresetIdx = editPresetIdx;
+      saveNegPresets();
+      renderNegPresets();
+      $('negativePrompt').value = content;
+      $('editPresetModal').classList.remove('active');
+      toast('预设已保存');
+    });
+
+    // 保存当前负面词为新预设
+    $('btnSaveCurrentPreset').addEventListener('click', () => {
+      const content = $('negativePrompt').value.trim();
+      if (!content) { toast('负面词为空', 'err'); return; }
+      const name = '自定义 ' + (negPresets.filter(p => p.name.startsWith('自定义')).length + 1);
+      negPresets.push({ name, text: content });
+      currentPresetIdx = negPresets.length - 1;
+      saveNegPresets();
+      renderNegPresets();
+      toast(`已保存为预设「${name}」`);
+    });
+
+    // 初始化负面词预设
+    loadNegPresets();
+    $('negativePrompt').value = negPresets[currentPresetIdx]?.text || '';
+    renderNegPresets();
+
+    // IndexedDB 连接
+    async function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('NAIGalleryDB', 2);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          db = request.result;
+          resolve();
+        };
+        request.onupgradeneeded = e => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains('artworks')) database.createObjectStore('artworks', { keyPath: 'id' });
+          if (!database.objectStoreNames.contains('artists')) database.createObjectStore('artists', { keyPath: 'id' });
+          if (!database.objectStoreNames.contains('groups')) database.createObjectStore('groups', { keyPath: 'id' });
+        };
+      });
+    }
+
+    async function dbGetAll(storeName) {
+      return new Promise((res, rej) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const req = tx.objectStore(storeName).getAll();
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+    }
+
+    async function dbGetOne(storeName, id) {
+      return new Promise((res, rej) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const req = tx.objectStore(storeName).get(id);
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+    }
+
+    async function loadData() {
+      if (!db) return;
+      try {
+        artists = await dbGetAll('artists');
+        groups = await dbGetAll('groups');
+        artworks = await dbGetAll('artworks');
+        const imgList = await dbGetAll('images');
+        images = {};
+        imgList.forEach(img => { images[img.id] = img.data; });
+        console.log('数据加载完成:', { artists: artists.length, groups: groups.length, artworks: artworks.length, images: Object.keys(images).length });
+        if (artworks.length > 0 && Object.keys(images).length > 0) {
+          console.log('示例 artwork:', artworks[0]);
+          console.log('示例 image data:', images[artworks[0].id] ? '存在，长度:' + images[artworks[0].id].length : '不存在');
+        }
+        updateDataStats();
+      } catch (e) {
+        console.error('加载数据失败:', e);
+      }
+    }
+
+    function updateDataStats() {
+      const stats = $('dataStats');
+      if (stats) {
+        stats.textContent = `${artists.length} 画师 / ${groups.length} 组合 / ${artworks.length} 作品`;
+      }
+    }
+
+    function sanitizeArtistName(name) {
+      if (!name) return '';
+      let cleaned = name.trim().replace(/\s+/g, "_").replace(/_+$/, "");
+      if (/^[A-Z_]+$/.test(cleaned)) {
+        cleaned = cleaned.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("_");
+      }
+      return cleaned;
+    }
+
+    function normForSearch(s) {
+      if (!s) return "";
+      return s.trim().toLowerCase().replace(/_/g, "");
+    }
+
+    function buildDicePool() {
+      const pool = [];
+      artists.filter(a => !a.discarded).forEach(a => pool.push({ id: a.id, name: a.name, type: "单人", isGroup: false }));
+      groups.filter(g => !g.discarded).forEach(g => pool.push({ id: g.id, name: g.name, type: "组合", isGroup: true }));
+      return pool;
+    }
+
+    function randWeight(forceMin, forceMax) {
+      let min, max;
+      if (forceMin !== undefined && forceMax !== undefined) {
+        min = forceMin; max = forceMax;
+      } else {
+        min = parseFloat($('weightMin').value) || 0.1;
+        max = parseFloat($('weightMax').value) || 2.0;
+      }
+      const lo = Math.min(min, max), hi = Math.max(min, max);
+      const v = lo + Math.random() * (hi - lo);
+      return Math.round(v * 100) / 100;
+    }
+
+    function getArtistArtworks(artistId) {
+      return artworks.filter(a => a.artistId === artistId).slice(0, 3);
+    }
+
+    function getGroupArtworks(groupId) {
+      const memberIds = groups.find(g => g.id === groupId)?.memberIds || [];
+      return artworks.filter(a => memberIds.includes(a.artistId)).slice(0, 3);
+    }
+
+    const imgCache = new Map();
+    async function getImage(id) {
+      if (!id) return null;
+      if (imgCache.has(id)) {
+        const val = imgCache.get(id);
+        imgCache.delete(id);
+        imgCache.set(id, val);
+        return val;
+      }
+      if (images[id]) {
+        imgCache.set(id, images[id]);
+        return images[id];
+      }
+      try {
+        const row = await dbGetOne('images', id);
+        if (row?.data) {
+          imgCache.set(id, row.data);
+          return row.data;
+        }
+      } catch (e) { }
+      return null;
+    }
+
+    async function renderDiceResults() {
+      const container = $('diceResults');
+      const empty = $('diceEmpty');
+      if (diceResults.length === 0) {
+        container.innerHTML = '';
+        empty.style.display = 'flex';
+        return;
+      }
+      empty.style.display = 'none';
+
+      const cardsHtml = await Promise.all(diceResults.map(async (r, i) => {
+        const previewImgs = r.isGroup ? getGroupArtworks(r.id) : getArtistArtworks(r.id);
+        const previewHtml = previewImgs.length > 0 ?
+          `<div class="artist-preview">${await Promise.all(previewImgs.map(async img => {
+            const imgData = await getImage(img.id);
+            const src = imgData || '';
+            return `<div class="preview-img" onclick="showImagePreview('${src}')">
+              <img src="${src}" alt="">
+            </div>`;
+          })).then(parts => parts.join(''))}</div>` : '';
+        return `
+          <div class="dice-card" data-key="${r.key}">
+            <div class="dice-card-header">
+              <span class="dice-card-index">#${i + 1}</span>
+              <div class="dice-card-name">${escapeHtml(r.name)}</div>
+              <div class="dice-card-actions">
+                <button class="btn btn-xs ${r.pinArtist ? 'pin-btn active' : 'pin-btn'}" onclick="togglePin('${r.key}')">${r.pinArtist ? '📌' : '📍'}</button>
+                <button class="btn btn-xs btn-danger" onclick="removeDice('${r.key}')">✕</button>
+              </div>
+            </div>
+            <div class="dice-card-body">
+              <div class="weight-input-wrap">
+                <button class="btn btn-sm weight-btn" onclick="adjustWeight('${r.key}', -0.1)">-</button>
+                <input type="number" class="weight-input" value="${r.weight}" step="0.1" onchange="updateWeight('${r.key}', this.value)">
+                <button class="btn btn-sm weight-btn" onclick="adjustWeight('${r.key}', 0.1)">+</button>
+              </div>
+            </div>
+            ${previewHtml}
+          </div>`;
+      }));
+
+      container.innerHTML = cardsHtml.join('');
+    }
+
+    function togglePin(key) {
+      const r = diceResults.find(x => x.key === key);
+      if (r) { r.pinArtist = !r.pinArtist; renderDiceResults(); }
+    }
+
+    function removeDice(key) {
+      diceResults = diceResults.filter(x => x.key !== key);
+      renderDiceResults();
+    }
+
+    function adjustWeight(key, delta) {
+      const r = diceResults.find(x => x.key === key);
+      if (r) {
+        r.weight = Math.max(0, Math.round((r.weight + delta) * 100) / 100);
+        renderDiceResults();
+      }
+    }
+
+    function updateWeight(key, value) {
+      const r = diceResults.find(x => x.key === key);
+      if (r) { r.weight = Math.max(0, parseFloat(value) || 0); }
+    }
+
+    // 抽取逻辑
+    $('btnDice').addEventListener('click', () => {
+      console.log('点击抽取按钮');
+      console.log('artists数组长度:', artists.length);
+      console.log('groups数组长度:', groups.length);
+
+      if (artists.length === 0 && groups.length === 0) {
+        toast('数据未加载，请刷新页面重试', 'err');
+        console.error('数据未加载，可能是IndexedDB连接问题');
+        return;
+      }
+
+      const pool = buildDicePool();
+      console.log('抽取池长度:', pool.length);
+
+      if (pool.length === 0) { toast('暂无可选画师', 'err'); return; }
+      const diceCount = Math.max(1, Math.min(parseInt($('diceCount').value) || 5, pool.length));
+      const fixedArtist = diceResults.filter(r => r.pinArtist);
+      const fixedKeys = new Set(fixedArtist.map(r => r.key));
+      const avail = pool.filter(p => !fixedKeys.has(p.isGroup ? 'g_' + p.id : 'a_' + p.id));
+      const shuffled = [...avail].sort(() => Math.random() - 0.5);
+      const picked = shuffled.slice(0, Math.max(0, diceCount - fixedArtist.length));
+
+      const totalMin = parseFloat($('weightMin').value) || 0.1;
+      const totalMax = parseFloat($('weightMax').value) || 2.0;
+      const specialMin = parseInt($('diceSpecialCountMin').value) || 0;
+      const specialMax = parseInt($('diceSpecialCountMax').value) || 0;
+      const splitY = parseFloat($('diceWeightSplit').value) || 1.0;
+      const direction = $('diceSpecialDirection').value;
+
+      const newPickedCount = picked.length;
+      let specialCount = Math.max(0, Math.min(specialMax, newPickedCount));
+      if (specialMin > specialCount) specialCount = specialMin;
+      const normalCount = newPickedCount - specialCount;
+
+      const specialIndices = new Set();
+      while (specialIndices.size < specialCount) {
+        specialIndices.add(Math.floor(Math.random() * newPickedCount));
+      }
+
+      let specialWMin, specialWMax, normalWMin, normalWMax;
+      if (direction === 'above') {
+        specialWMin = Math.max(totalMin, splitY);
+        specialWMax = totalMax;
+        normalWMin = totalMin;
+        normalWMax = Math.min(totalMax, splitY);
+      } else {
+        specialWMin = totalMin;
+        specialWMax = Math.min(totalMax, splitY);
+        normalWMin = Math.max(totalMin, splitY);
+        normalWMax = totalMax;
+      }
+
+      const newResults = [
+        ...fixedArtist,
+        ...picked.map((p, i) => {
+          let w = specialIndices.has(i) ? randWeight(specialWMin, specialWMax) : randWeight(normalWMin, normalWMax);
+          return {
+            key: p.isGroup ? 'g_' + p.id : 'a_' + p.id,
+            id: p.id, name: p.name, type: p.type, isGroup: p.isGroup,
+            weight: w, pinArtist: false, pinWeight: false, rating: 0
+          };
+        })
+      ];
+
+      diceResults = newResults;
+      renderDiceResults();
+      toast(`成功抽取 ${newResults.length} 位画师`);
+    });
+
+    $('btnClear').addEventListener('click', () => {
+      diceResults = [];
+      renderDiceResults();
+    });
+
+    // 导入画师串
+    $('btnImport').addEventListener('click', () => {
+      const str = $('importStr').value.trim();
+      if (!str) { toast('请输入画师串', 'err'); return; }
+
+      if (artists.length === 0) {
+        toast('数据尚未加载完成，请稍后重试', 'err');
+        return;
+      }
+
+      const parts = str.split(/[,，]/).map(p => p.trim()).filter(p => p);
+      const pool = buildDicePool();
+      const imported = [];
+      const notFound = [];
+      const parseErrors = [];
+
+      console.log('导入字符串:', str);
+      console.log('分割后:', parts);
+      console.log('可用画师池:', pool.length);
+
+      for (const part of parts) {
+        let match = part.match(/^([\d.]+)::artist:\s*([^:]+?)\s*::$/);
+        if (!match) match = part.match(/^([\d.]+)::artist:\s*([^:]+?)\s*:\s*$/);
+        if (!match) match = part.match(/^([\d.]+)::artist:\s*([^:]+?)\s*$/);
+
+        if (!match) {
+          parseErrors.push(part);
+          continue;
+        }
+
+        const weight = parseFloat(match[1]);
+        const name = sanitizeArtistName(match[2]);
+
+        console.log('解析:', part, '-> 权重:', weight, '名称:', name);
+
+        let found = pool.find(p => p.name === name);
+        if (!found) found = pool.find(p => p.name.toLowerCase() === name.toLowerCase());
+        if (!found) found = pool.find(p => normForSearch(p.name) === normForSearch(name));
+        if (!found) {
+          const searchName = name.toLowerCase().replace(/_/g, '');
+          found = pool.find(p => p.name.toLowerCase().replace(/_/g, '').includes(searchName));
+        }
+
+        if (found) {
+          imported.push({
+            key: found.isGroup ? 'g_' + found.id : 'a_' + found.id,
+            id: found.id, name: found.name, type: found.type, isGroup: found.isGroup,
+            weight: weight, pinArtist: false, pinWeight: false, rating: 0
+          });
+        } else {
+          notFound.push(name);
+        }
+      }
+
+      if (imported.length === 0) {
+        let errMsg = '';
+        if (parseErrors.length > 0) errMsg = `格式错误：${parseErrors.slice(0, 3).join(', ')}`;
+        if (notFound.length > 0) errMsg += (errMsg ? '，' : '') + `未找到：${notFound.slice(0, 3).join(', ')}`;
+        if (!errMsg) errMsg = '未识别到有效格式';
+        toast(errMsg, 'err');
+      } else {
+        diceResults = imported;
+        $('importStr').value = '';
+        renderDiceResults();
+        let msg = `成功导入 ${imported.length} 位画师`;
+        if (notFound.length > 0) msg += `，未找到：${notFound.slice(0, 3).join(', ')}`;
+        if (parseErrors.length > 0) msg += `，格式错误：${parseErrors.length} 个`;
+        toast(msg);
+      }
+    });
+
+    // 刷新数据
+    $('btnRefresh').addEventListener('click', async () => {
+      toast('正在刷新数据...');
+      try {
+        await initDB();
+        await loadData();
+        toast(`数据已刷新：${artists.length} 画师，${artworks.length} 作品`);
+      } catch (e) {
+        console.error('刷新失败:', e);
+        toast('刷新失败', 'err');
+      }
+    });
+
+    // 图片预览
+    window.showImagePreview = (src) => {
+      $('modalImg').src = src;
+      $('imgModal').classList.add('active');
+    };
+    $('btnCloseImg').addEventListener('click', () => $('imgModal').classList.remove('active'));
+
+    // 返回画师库
+    $('btnBack').addEventListener('click', () => {
+      window.location.href = '画师库.html';
+    });
+
+    // 设置
+    $('btnSettings').addEventListener('click', () => $('settingsModal').classList.add('active'));
+    $('btnCloseSettings').addEventListener('click', () => $('settingsModal').classList.remove('active'));
+    $('btnSaveSettings').addEventListener('click', () => {
+      settings.token = $('token').value;
+      settings.apiBase = $('apiBase').value;
+      localStorage.setItem(LS_KEY, JSON.stringify(settings));
+      $('settingsModal').classList.remove('active');
+      toast('设置已保存');
+    });
+
+    // 生成图片
+    function setStatus(state, text) {
+      $('statusDot').className = 'dot' + (state ? ' ' + state : '');
+      $('statusText').textContent = text;
+    }
+
+    function toast(msg, type = '') {
+      const t = $('toast');
+      t.textContent = msg;
+      t.className = 'toast show ' + type;
+      setTimeout(() => t.className = 'toast ' + type, 2200);
+    }
+
+    function checkToken() {
+      if (!settings.token) {
+        toast('请先设置 NovelAI Token', 'err');
+        $('settingsModal').classList.add('active');
+        return false;
+      }
+      return true;
+    }
+
+    function buildPrompt() {
+      if (diceResults.length === 0) {
+        toast('请先抽取或导入画师', 'err');
+        return null;
+      }
+      const artistTags = diceResults.map(r => {
+        const weight = r.weight;
+        let suffix = '';
+        if (weight > 1) {
+          const times = Math.round((weight - 1) * 10);
+          suffix = '{' + '}'.repeat(Math.min(times, 10));
+        } else if (weight < 1) {
+          const times = Math.round((1 - weight) * 20);
+          suffix = '[' + ']'.repeat(Math.min(times, 10));
+        }
+        return `artist:${r.name}${suffix}`;
+      }).join(', ');
+      const base = $('fixedPrompt').value.trim();
+      return base ? `${artistTags}, ${base}` : artistTags;
+    }
+
+    async function generateOne(prompt, negative) {
+      const base = (settings.apiBase || 'https://image.novelai.net').replace(/\/+$/, '');
+      const url = base + '/ai/generate-image';
+
+      const model = $('model').value;
+      const [w, h] = $('resolution').value.split('x').map(Number);
+      let seed = Math.floor(Math.random() * 4294967295);
+
+      const isV4 = model.startsWith('nai-diffusion-4');
+      const params = {
+        params_version: isV4 ? 3 : 1,
+        width: w, height: h,
+        scale: parseFloat($('scale').value),
+        sampler: $('sampler').value,
+        steps: parseInt($('steps').value),
+        seed, n_samples: 1,
+        ucPreset: 0, qualityToggle: true,
+        negative_prompt: negative,
+        noise_schedule: 'native',
+        sm: false, sm_dyn: false, cfg_rescale: 0,
+        dynamic_thresholding: false, prefer_brownian: true,
+        deliberate_euler_ancestral_bug: true,
+        legacy: false, legacy_v3_extend: false
+      };
+
+      if (isV4) {
+        params.v4_prompt = { caption: { base_caption: prompt, char_captions: [] }, use_coords: false, use_order: true, legacy_uc: false };
+        params.v4_negative_prompt = { caption: { base_caption: negative, char_captions: [] }, use_coords: false, use_order: true, legacy_uc: false };
+      }
+
+      const payload = { input: prompt, model, action: 'generate', parameters: params };
+      setStatus('loading', '生成中...');
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + settings.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        let detail = '';
+        try { detail = await res.text(); } catch (e) { }
+        throw new Error(`HTTP ${res.status}\n${detail.slice(0, 500)}`);
+      }
+
+      const buf = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      const imgFile = Object.values(zip.files).find(f => /\.(png|jpg|jpeg|webp)$/i.test(f.name) && !f.dir);
+      if (!imgFile) throw new Error('ZIP 中未找到图片');
+
+      const blob = await imgFile.async('blob');
+      return { blobUrl: URL.createObjectURL(blob), seed, model, w, h };
+    }
+
+    $('btnGenerate').addEventListener('click', async () => {
+      if (!checkToken()) return;
+      const prompt = buildPrompt();
+      if (!prompt) return;
+      const negative = $('negativePrompt').value.trim();
+
+      $('placeholder').style.display = 'none';
+      $('resultImg').style.display = 'none';
+      $('resultMeta').style.display = 'none';
+      $('progressWrap').classList.add('active');
+      $('btnGenerate').disabled = true;
+
+      try {
+        const r = await generateOne(prompt, negative);
+        $('resultImg').src = r.blobUrl;
+        $('resultImg').style.display = 'block';
+        $('resultMeta').innerHTML = `
+          <span class="chip">种子: ${r.seed}</span>
+          <span class="chip">${r.w}×${r.h}</span>
+          <span class="chip">${$('steps').value}步 / CFG ${$('scale').value}</span>
+          <span class="chip">${r.model}</span>
+        `;
+        $('resultMeta').style.display = 'flex';
+        setStatus('ok', '生成完成');
+        toast('生成成功', 'ok');
+      } catch (err) {
+        console.error(err);
+        setStatus('err', '生成失败');
+        toast(err.message.slice(0, 50), 'err');
+      } finally {
+        $('progressWrap').classList.remove('active');
+        $('btnGenerate').disabled = false;
+      }
+    });
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // 初始化
+    (async () => {
+      try {
+        await initDB();
+        await loadData();
+        toast(`加载完成：${artists.length} 位画师，${artworks.length} 幅作品`);
+      } catch (e) {
+        console.error('加载数据失败:', e);
+        toast('加载数据失败，请确保画师库已打开过', 'err');
+      }
+    })();
+  </script>
+</body>
+
+</html>
