@@ -329,6 +329,43 @@
       object-fit: cover;
     }
 
+    /* 可折叠面板 */
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 0.2rem 0;
+    }
+
+    .panel-header:hover {
+      opacity: 0.8;
+    }
+
+    .panel-header h2 {
+      margin-bottom: 0;
+    }
+
+    .panel-header .toggle-icon {
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+
+    .panel-header.collapsed .toggle-icon {
+      transform: rotate(-90deg);
+    }
+
+    .panel-content {
+      overflow: hidden;
+      transition: max-height 0.3s, opacity 0.3s;
+    }
+
+    .panel-content.collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      padding-top: 0 !important;
+    }
+
     /* 负面词预设 */
     .neg-presets {
       display: flex;
@@ -596,19 +633,12 @@
       justify-content: center;
     }
 
-    .chip {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      padding: 0.25rem 0.6rem;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      color: var(--text2);
-    }
-
+    /* 生成历史 */
     .history-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 0.4rem;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
       max-height: 300px;
       overflow-y: auto;
     }
@@ -619,8 +649,12 @@
       overflow: hidden;
       background: var(--surface3);
       cursor: pointer;
-      border: 1px solid var(--border);
+      border: 1px solid transparent;
       position: relative;
+    }
+
+    .history-item:hover {
+      border-color: var(--accent);
     }
 
     .history-item img {
@@ -629,18 +663,28 @@
       object-fit: cover;
     }
 
-    .history-item:hover {
-      border-color: var(--accent);
-    }
-
-    .history-date {
+    .history-item .history-meta {
       position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
       background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
       padding: 0.3rem;
-      font-size: 0.7rem;
+      font-size: 0.65rem;
+      color: var(--text2);
+      display: none;
+    }
+
+    .history-item:hover .history-meta {
+      display: block;
+    }
+
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
       color: var(--text2);
     }
   </style>
@@ -709,82 +753,88 @@
 
     <!-- 中间抽取结果 -->
     <div class="panel">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div class="panel-header" id="diceResultsHeader">
         <h2>◆ 抽取结果</h2>
-        <button class="btn btn-ghost btn-sm" id="btnCopyString" style="display:none">📋 复制画师串</button>
+        <span class="toggle-icon">▶</span>
       </div>
-      <div id="diceResults"></div>
-      <div id="diceEmpty" class="placeholder" style="margin-top:1rem">
-        <div class="big">🎲</div>
-        <div>点击左侧「抽取画师」或导入画师串</div>
+      <div class="panel-content" id="diceResultsContent">
+        <button class="btn btn-xs btn-ghost" id="btnCopyArtistString" style="margin-bottom:0.5rem;float:right">📋
+          复制画师串</button>
+        <div style="clear:both"></div>
+        <div id="diceResults"></div>
+        <div id="diceEmpty" class="placeholder" style="margin-top:1rem">
+          <div class="big">🎲</div>
+          <div>点击左侧「抽取画师」或导入画师串</div>
+        </div>
       </div>
     </div>
 
     <!-- 右侧生成面板 -->
     <div class="panel">
-      <h2>◆ 生成设置</h2>
-      <div class="field">
-        <label>固定正面词</label>
-        <textarea id="fixedPrompt" placeholder="1girl, blonde hair, blue eyes, smile..."></textarea>
+      <div class="panel-header" id="genSettingsHeader">
+        <h2>◆ 生成设置</h2>
+        <span class="toggle-icon">▶</span>
       </div>
-      <div class="field">
-        <label>负面词预设 <button class="btn btn-xs" id="btnAddPreset" style="margin-left:0.3rem">+ 添加</button></label>
-        <div class="neg-presets" id="negPresetBtns"></div>
-        <button class="btn btn-xs" id="btnToggleNegPresets" style="margin-top:0.2rem">▼ 展开/收起预设列表</button>
-        <textarea id="negativePrompt" placeholder="lowres, bad anatomy, bad hands..."></textarea>
-        <button class="btn btn-xs" id="btnSaveCurrentPreset" style="margin-top:0.3rem">保存当前为新预设</button>
+      <div class="panel-content" id="genSettingsContent">
+        <div class="field">
+          <label>固定正面词</label>
+          <textarea id="fixedPrompt" placeholder="1girl, blonde hair, blue eyes, smile..."></textarea>
+        </div>
+        <div class="field">
+          <label>负面词预设 <button class="btn btn-xs" id="btnAddPreset" style="margin-left:0.3rem">+ 添加</button></label>
+          <div class="neg-presets" id="negPresetBtns"></div>
+          <textarea id="negativePrompt" placeholder="lowres, bad anatomy, bad hands..."></textarea>
+          <button class="btn btn-xs" id="btnSaveCurrentPreset" style="margin-top:0.3rem">保存当前为新预设</button>
+        </div>
+        <div class="row-3">
+          <div class="field">
+            <label>模型</label>
+            <select id="model">
+              <option value="nai-diffusion-4-5-full">V4.5 Full</option>
+              <option value="nai-diffusion-4-5-curated">V4.5 Curated</option>
+              <option value="nai-diffusion-4-full">V4 Full</option>
+              <option value="nai-diffusion-3">V3</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>分辨率</label>
+            <select id="resolution">
+              <option value="832x1216">832×1216</option>
+              <option value="1216x832">1216×832</option>
+              <option value="1024x1024">1024×1024</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>采样器</label>
+            <select id="sampler">
+              <option value="k_euler">Euler</option>
+              <option value="k_euler_ancestral">Euler A</option>
+              <option value="k_dpmpp_2m">DPM++ 2M</option>
+              <option value="k_dpmpp_2m_sde">DPM++ 2M SDE</option>
+            </select>
+          </div>
+        </div>
+        <div class="row-3">
+          <div class="field">
+            <label>噪声调度</label>
+            <select id="noiseSchedule">
+              <option value="native">Native</option>
+              <option value="karras">Karras</option>
+              <option value="exponential">Exponential</option>
+              <option value="polyexponential">Polyexponential</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>步数</label>
+            <input type="number" id="steps" value="28" min="1" max="50">
+          </div>
+          <div class="field">
+            <label>CFG</label>
+            <input type="number" id="scale" value="5" min="0" max="10" step="0.5">
+          </div>
+        </div>
       </div>
-      <div class="row-3">
-        <div class="field">
-          <label>模型</label>
-          <select id="model">
-            <option value="nai-diffusion-4-5-full">V4.5 Full</option>
-            <option value="nai-diffusion-4-5-curated">V4.5 Curated</option>
-            <option value="nai-diffusion-4-full">V4 Full</option>
-            <option value="nai-diffusion-3">V3</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>分辨率</label>
-          <select id="resolution">
-            <option value="832x1216">832×1216</option>
-            <option value="1216x832">1216×832</option>
-            <option value="1024x1024">1024×1024</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>采样器</label>
-          <select id="sampler">
-            <option value="k_euler">Euler</option>
-            <option value="k_euler_ancestral">Euler A</option>
-            <option value="k_dpmpp_2m">DPM++ 2M</option>
-            <option value="k_dpmpp_2m_sde">DPM++ 2M SDE</option>
-          </select>
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label>噪声调度</label>
-          <select id="noiseSchedule">
-            <option value="native">Native</option>
-            <option value="karras">Karras</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>种子</label>
-          <input type="number" id="seed" value="-1" min="-1">
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label>步数</label>
-          <input type="number" id="steps" value="28" min="1" max="50">
-        </div>
-        <div class="field">
-          <label>CFG</label>
-          <input type="number" id="scale" value="5" min="0" max="10" step="0.5">
-        </div>
-      </div>
+
       <button class="btn btn-primary" id="btnGenerate" style="width:100%;margin-top:0.5rem">✦ 生成图片</button>
 
       <div class="progress-wrap" id="progressWrap">
@@ -808,11 +858,16 @@
       </div>
 
       <div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:1rem;">
-        <h2>◆ 生成历史</h2>
-        <div class="history-grid" id="historyGrid"></div>
-        <div id="historyEmpty" class="placeholder" style="margin-top:1rem">
-          <div class="big">📜</div>
-          <div>暂无生成记录</div>
+        <div class="panel-header" id="historyHeader">
+          <h2>◆ 生成历史</h2>
+          <span class="toggle-icon">▶</span>
+        </div>
+        <div class="panel-content" id="historyContent">
+          <div class="history-grid" id="historyGrid"></div>
+          <div id="historyEmpty" class="placeholder" style="margin-top:1rem">
+            <div class="big">📷</div>
+            <div>暂无生成记录</div>
+          </div>
         </div>
       </div>
     </div>
@@ -898,6 +953,7 @@
     let artists = [], groups = [], artworks = [], images = {};
     let diceResults = [];
     let db = null;
+    let genHistory = [];
 
     // 默认负面词预设
     const DEFAULT_NEG_PRESETS = [
@@ -934,190 +990,55 @@
       } catch (e) { }
     }
 
-    let history = [];
-
-    async function loadHistory() {
-      if (!db) {
-        history = [];
-        return;
-      }
-      try {
-        const items = await dbGetAll('generationHistory');
-        history = items.sort((a, b) => b.id - a.id);
-      } catch (e) {
-        console.error('加载历史失败:', e);
-        history = [];
-      }
-    }
-
-    async function saveHistoryToDB() {
-      if (!db) return;
-      try {
-        const tx = db.transaction('generationHistory', 'readwrite');
-        const store = tx.objectStore('generationHistory');
-        const all = await new Promise(res => {
-          const req = store.getAll();
-          req.onsuccess = () => res(req.result);
-        });
-        for (const item of all) {
-          await new Promise(res => store.delete(item.id).onsuccess = res);
-        }
-        for (const item of history) {
-          await new Promise(res => store.put(item).onsuccess = res);
-        }
-      } catch (e) {
-        console.error('保存历史失败:', e);
-      }
-    }
-
-    function blobToBase64(blob) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    }
-
-    async function addToHistory(blobUrl, seed, model, w, h) {
-      try {
-        const response = await fetch(blobUrl);
-        const blob = await response.blob();
-        const base64 = await blobToBase64(blob);
-        URL.revokeObjectURL(blobUrl);
-
-        const now = new Date();
-        history.unshift({
-          imageData: base64,
-          seed,
-          model,
-          w,
-          h,
-          date: now.toISOString()
-        });
-
-        if (history.length > 30) {
-          history.pop();
-        }
-
-        await saveHistoryToDB();
-        renderHistory();
-      } catch (e) {
-        console.error('添加到历史失败:', e);
-      }
-    }
-
-    function renderHistory() {
-      const grid = $('historyGrid');
-      const empty = $('historyEmpty');
-
-      if (history.length === 0) {
-        grid.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-      }
-
-      empty.style.display = 'none';
-      grid.innerHTML = history.map((item, i) => {
-        const date = new Date(item.date);
-        const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-        return `
-          <div class="history-item" data-idx="${i}">
-            <img src="${item.imageData}" alt="生成记录 ${i + 1}">
-            <div class="history-date">${timeStr}</div>
-          </div>
-        `;
-      }).join('');
-
-      grid.querySelectorAll('.history-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const idx = parseInt(item.dataset.idx);
-          const record = history[idx];
-          $('resultImg').src = record.imageData;
-          $('resultImg').style.display = 'block';
-          $('resultMeta').innerHTML = `
-            <span class="chip">种子: ${record.seed}</span>
-            <span class="chip">${record.w}×${record.h}</span>
-            <span class="chip">${record.model}</span>
-          `;
-          $('resultMeta').style.display = 'flex';
-          $('placeholder').style.display = 'none';
-        });
-      });
-    }
-
-    let presetsCollapsed = false;
-
     function renderNegPresets() {
       const btns = $('negPresetBtns');
-      const toggleBtn = $('btnToggleNegPresets');
-
-      if (presetsCollapsed) {
-        btns.innerHTML = `
-          <button class="neg-preset-btn${currentPresetIdx === -1 ? ' active' : ''}" data-idx="${currentPresetIdx}">
-            ${currentPresetIdx >= 0 ? (currentPresetIdx + 1) + '. ' + negPresets[currentPresetIdx].name : '点击展开选择预设'}
-          </button>
-        `;
-        toggleBtn.textContent = '▲ 展开预设列表';
-      } else {
-        btns.innerHTML = negPresets.map((p, i) => `
-          <button class="neg-preset-btn${i === currentPresetIdx ? ' active' : ''}" data-idx="${i}">
-            ${i + 1}. ${p.name}
-            <span class="edit-preset" data-edit="${i}">✎</span>
-            ${i >= DEFAULT_NEG_PRESETS.length ? '<span class="delete-preset" data-del="' + i + '">×</span>' : ''}
-          </button>
-        `).join('');
-        toggleBtn.textContent = '▼ 收起预设列表';
-      }
+      btns.innerHTML = negPresets.map((p, i) => `
+        <button class="neg-preset-btn${i === currentPresetIdx ? ' active' : ''}" data-idx="${i}">
+          ${i + 1}. ${p.name}
+          <span class="edit-preset" data-edit="${i}">✎</span>
+          ${i >= DEFAULT_NEG_PRESETS.length ? '<span class="delete-preset" data-del="' + i + '">×</span>' : ''}
+        </button>
+      `).join('');
 
       btns.querySelectorAll('.neg-preset-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           if (e.target.classList.contains('delete-preset') || e.target.classList.contains('edit-preset')) return;
           const idx = parseInt(btn.dataset.idx);
-          if (idx >= 0) {
-            currentPresetIdx = idx;
-            $('negativePrompt').value = negPresets[idx].text;
+          currentPresetIdx = idx;
+          $('negativePrompt').value = negPresets[idx].text;
+          renderNegPresets();
+        });
+      });
+
+      btns.querySelectorAll('.delete-preset').forEach(delBtn => {
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(delBtn.dataset.del);
+          if (idx >= DEFAULT_NEG_PRESETS.length) {
+            negPresets.splice(idx, 1);
+            if (currentPresetIdx >= negPresets.length) currentPresetIdx = negPresets.length - 1;
+            if (currentPresetIdx < 0) currentPresetIdx = 0;
+            $('negativePrompt').value = negPresets[currentPresetIdx].text;
+            saveNegPresets();
             renderNegPresets();
+            toast('预设已删除');
           }
         });
       });
 
-      if (!presetsCollapsed) {
-        btns.querySelectorAll('.delete-preset').forEach(delBtn => {
-          delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const idx = parseInt(delBtn.dataset.del);
-            if (idx >= DEFAULT_NEG_PRESETS.length) {
-              negPresets.splice(idx, 1);
-              if (currentPresetIdx >= negPresets.length) currentPresetIdx = negPresets.length - 1;
-              if (currentPresetIdx < 0) currentPresetIdx = 0;
-              $('negativePrompt').value = negPresets[currentPresetIdx].text;
-              saveNegPresets();
-              renderNegPresets();
-              toast('预设已删除');
-            }
-          });
+      btns.querySelectorAll('.edit-preset').forEach(editBtn => {
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(editBtn.dataset.edit);
+          editPresetIdx = idx;
+          $('editPresetName').value = negPresets[idx].name;
+          $('editPresetContent').value = negPresets[idx].text;
+          $('editPresetModal').classList.add('active');
         });
-
-        btns.querySelectorAll('.edit-preset').forEach(editBtn => {
-          editBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const idx = parseInt(editBtn.dataset.edit);
-            editPresetIdx = idx;
-            $('editPresetName').value = negPresets[idx].name;
-            $('editPresetContent').value = negPresets[idx].text;
-            $('editPresetModal').classList.add('active');
-          });
-        });
-      }
+      });
     }
 
     let editPresetIdx = -1;
-
-    $('btnToggleNegPresets').addEventListener('click', () => {
-      presetsCollapsed = !presetsCollapsed;
-      renderNegPresets();
-    });
 
     // 添加预设弹窗
     $('btnAddPreset').addEventListener('click', () => {
@@ -1178,28 +1099,107 @@
     $('negativePrompt').value = negPresets[currentPresetIdx]?.text || '';
     renderNegPresets();
 
+    // 加载生成历史
+    function loadGenHistory() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        genHistory = saved;
+      } catch (e) {
+        genHistory = [];
+      }
+      renderGenHistory();
+    }
+
+    function saveGenHistory() {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(genHistory));
+      } catch (e) { }
+    }
+
+    function addGenHistory(imgUrl, seed, model, w, h) {
+      genHistory.unshift({ imgUrl, seed, model, w, h, time: Date.now() });
+      if (genHistory.length > 30) {
+        const removed = genHistory.pop();
+        if (removed.imgUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(removed.imgUrl);
+        }
+      }
+      saveGenHistory();
+      renderGenHistory();
+    }
+
+    function renderGenHistory() {
+      const grid = $('historyGrid');
+      const empty = $('historyEmpty');
+      if (genHistory.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'flex';
+        return;
+      }
+      empty.style.display = 'none';
+      grid.innerHTML = genHistory.map((item, i) => `
+        <div class="history-item" onclick="showImagePreview('${item.imgUrl}')">
+          <img src="${item.imgUrl}" alt="历史生成 ${i + 1}">
+          <div class="history-meta">
+            种子: ${item.seed}<br>
+            ${item.w}×${item.h}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 折叠面板功能
+    function initCollapsible(headerId, contentId) {
+      const header = $(headerId);
+      const content = $(contentId);
+      if (!header || !content) return;
+
+      const updateHeight = () => {
+        content.style.maxHeight = content.classList.contains('collapsed') ? '0' : content.scrollHeight + 'px';
+      };
+
+      header.addEventListener('click', () => {
+        header.classList.toggle('collapsed');
+        content.classList.toggle('collapsed');
+        updateHeight();
+      });
+
+      updateHeight();
+      setTimeout(updateHeight, 100);
+    }
+
+    // 复制画师串
+    function buildArtistString() {
+      return diceResults.map(r => `${r.weight}::artist:${r.name} ::`).join(', ');
+    }
+
+    $('btnCopyArtistString').addEventListener('click', () => {
+      if (diceResults.length === 0) {
+        toast('没有可复制的画师', 'err');
+        return;
+      }
+      const str = buildArtistString();
+      navigator.clipboard.writeText(str).then(() => {
+        toast('画师串已复制', 'ok');
+      }).catch(() => {
+        toast('复制失败，请手动复制', 'err');
+      });
+    });
+
     // IndexedDB 连接
     async function initDB() {
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open('NAIGalleryDB', 3);
-        request.onerror = (e) => {
-          console.error('IndexedDB 打开失败:', e.target.error);
-          reject(e.target.error);
-        };
-        request.onsuccess = (e) => {
-          db = e.target.result;
-          console.log('IndexedDB 打开成功，版本:', db.version);
+        const request = indexedDB.open('NAIGalleryDB', 2);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          db = request.result;
           resolve();
         };
-        request.onupgradeneeded = (e) => {
+        request.onupgradeneeded = e => {
           const database = e.target.result;
-          db = database;
-          console.log('IndexedDB 版本升级:', e.oldVersion, '->', e.newVersion);
           if (!database.objectStoreNames.contains('artworks')) database.createObjectStore('artworks', { keyPath: 'id' });
           if (!database.objectStoreNames.contains('artists')) database.createObjectStore('artists', { keyPath: 'id' });
           if (!database.objectStoreNames.contains('groups')) database.createObjectStore('groups', { keyPath: 'id' });
-          if (!database.objectStoreNames.contains('images')) database.createObjectStore('images', { keyPath: 'id' });
-          if (!database.objectStoreNames.contains('generationHistory')) database.createObjectStore('generationHistory', { keyPath: 'id', autoIncrement: true });
         };
       });
     }
@@ -1225,24 +1225,13 @@
     async function loadData() {
       if (!db) return;
       try {
-        console.log('开始加载数据...');
         artists = await dbGetAll('artists');
-        console.log('artists 加载完成:', artists.length);
         groups = await dbGetAll('groups');
-        console.log('groups 加载完成:', groups.length);
         artworks = await dbGetAll('artworks');
-        console.log('artworks 加载完成:', artworks.length);
-
-        try {
-          const imgList = await dbGetAll('images');
-          images = {};
-          imgList.forEach(img => { images[img.id] = img.data; });
-          console.log('images 加载完成:', Object.keys(images).length);
-        } catch (imgErr) {
-          console.warn('images 加载失败:', imgErr);
-          images = {};
-        }
-
+        const imgList = await dbGetAll('images');
+        images = {};
+        imgList.forEach(img => { images[img.id] = img.data; });
+        console.log('数据加载完成:', { artists: artists.length, groups: groups.length, artworks: artworks.length, images: Object.keys(images).length });
         if (artworks.length > 0 && Object.keys(images).length > 0) {
           console.log('示例 artwork:', artworks[0]);
           console.log('示例 image data:', images[artworks[0].id] ? '存在，长度:' + images[artworks[0].id].length : '不存在');
@@ -1329,16 +1318,12 @@
     async function renderDiceResults() {
       const container = $('diceResults');
       const empty = $('diceEmpty');
-      const copyBtn = $('btnCopyString');
-
       if (diceResults.length === 0) {
         container.innerHTML = '';
         empty.style.display = 'flex';
-        copyBtn.style.display = 'none';
         return;
       }
       empty.style.display = 'none';
-      copyBtn.style.display = 'inline-flex';
 
       const cardsHtml = await Promise.all(diceResults.map(async (r, i) => {
         const previewImgs = r.isGroup ? getGroupArtworks(r.id) : getArtistArtworks(r.id);
@@ -1472,25 +1457,6 @@
       renderDiceResults();
     });
 
-    $('btnCopyString').addEventListener('click', () => {
-      const artistString = diceResults.map(r => {
-        const weight = r.weight.toFixed(2);
-        return `${weight}::artist:${r.name} ::`;
-      }).join(', ');
-
-      navigator.clipboard.writeText(artistString).then(() => {
-        toast('画师串已复制', 'ok');
-      }).catch(() => {
-        const textarea = document.createElement('textarea');
-        textarea.value = artistString;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        toast('画师串已复制', 'ok');
-      });
-    });
-
     // 导入画师串
     $('btnImport').addEventListener('click', () => {
       const str = $('importStr').value.trim();
@@ -1568,8 +1534,6 @@
       try {
         await initDB();
         await loadData();
-        await loadHistory();
-        renderHistory();
         toast(`数据已刷新：${artists.length} 画师，${artworks.length} 作品`);
       } catch (e) {
         console.error('刷新失败:', e);
@@ -1628,8 +1592,16 @@
         return null;
       }
       const artistTags = diceResults.map(r => {
-        const weight = r.weight.toFixed(2);
-        return `${weight}::artist:${r.name} ::`;
+        const weight = r.weight;
+        let suffix = '';
+        if (weight > 1) {
+          const times = Math.round((weight - 1) * 10);
+          suffix = '{' + '}'.repeat(Math.min(times, 10));
+        } else if (weight < 1) {
+          const times = Math.round((1 - weight) * 20);
+          suffix = '[' + ']'.repeat(Math.min(times, 10));
+        }
+        return `artist:${r.name}${suffix}`;
       }).join(', ');
       const base = $('fixedPrompt').value.trim();
       return base ? `${artistTags}, ${base}` : artistTags;
@@ -1641,8 +1613,7 @@
 
       const model = $('model').value;
       const [w, h] = $('resolution').value.split('x').map(Number);
-      const seedInput = parseInt($('seed').value);
-      let seed = seedInput >= 0 ? seedInput : Math.floor(Math.random() * 4294967295);
+      let seed = Math.floor(Math.random() * 4294967295);
 
       const isV4 = model.startsWith('nai-diffusion-4');
       const params = {
@@ -1715,7 +1686,7 @@
         $('resultMeta').style.display = 'flex';
         setStatus('ok', '生成完成');
         toast('生成成功', 'ok');
-        addToHistory(r.blobUrl, r.seed, r.model, r.w, r.h);
+        addGenHistory(r.blobUrl, r.seed, r.model, r.w, r.h);
       } catch (err) {
         console.error(err);
         setStatus('err', '生成失败');
@@ -1730,35 +1701,21 @@
       return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    async function doInit() {
+    // 初始化
+    (async () => {
       try {
-        console.log('=== 开始初始化 ===');
         await initDB();
-        console.log('=== IndexedDB 连接成功 ===');
-
         await loadData();
-        console.log('=== 数据加载完成 ===');
-        console.log('统计:', { artists: artists.length, groups: groups.length, artworks: artworks.length, images: Object.keys(images).length });
-
-        await loadHistory();
-        console.log('=== 历史记录加载完成 ===');
-        console.log('历史记录数:', history.length);
-
-        renderHistory();
-
-        if (artists.length === 0 && artworks.length === 0) {
-          toast('数据库为空，请先打开「画师库」页面上传作品', 'err');
-        } else {
-          toast(`加载完成：${artists.length} 位画师，${artworks.length} 幅作品`);
-        }
+        loadGenHistory();
+        initCollapsible('diceResultsHeader', 'diceResultsContent');
+        initCollapsible('genSettingsHeader', 'genSettingsContent');
+        initCollapsible('historyHeader', 'historyContent');
+        toast(`加载完成：${artists.length} 位画师，${artworks.length} 幅作品`);
       } catch (e) {
         console.error('加载数据失败:', e);
-        toast('加载数据失败，请打开浏览器控制台查看详细错误', 'err');
+        toast('加载数据失败，请确保画师库已打开过', 'err');
       }
-    }
-
-    // 延迟重试机制
-    setTimeout(doInit, 100);
+    })();
   </script>
 </body>
 
