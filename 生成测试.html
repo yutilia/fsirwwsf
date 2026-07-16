@@ -604,6 +604,45 @@
       font-size: 0.78rem;
       color: var(--text2);
     }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      aspect-ratio: 2/3;
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--surface3);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+
+    .history-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .history-item:hover {
+      border-color: var(--accent);
+    }
+
+    .history-date {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+      padding: 0.3rem;
+      font-size: 0.7rem;
+      color: var(--text2);
+    }
   </style>
 </head>
 
@@ -670,7 +709,10 @@
 
     <!-- 中间抽取结果 -->
     <div class="panel">
-      <h2>◆ 抽取结果</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h2>◆ 抽取结果</h2>
+        <button class="btn btn-ghost btn-sm" id="btnCopyString" style="display:none">📋 复制画师串</button>
+      </div>
       <div id="diceResults"></div>
       <div id="diceEmpty" class="placeholder" style="margin-top:1rem">
         <div class="big">🎲</div>
@@ -688,6 +730,7 @@
       <div class="field">
         <label>负面词预设 <button class="btn btn-xs" id="btnAddPreset" style="margin-left:0.3rem">+ 添加</button></label>
         <div class="neg-presets" id="negPresetBtns"></div>
+        <button class="btn btn-xs" id="btnToggleNegPresets" style="margin-top:0.2rem">▼ 展开/收起预设列表</button>
         <textarea id="negativePrompt" placeholder="lowres, bad anatomy, bad hands..."></textarea>
         <button class="btn btn-xs" id="btnSaveCurrentPreset" style="margin-top:0.3rem">保存当前为新预设</button>
       </div>
@@ -721,6 +764,19 @@
       </div>
       <div class="row">
         <div class="field">
+          <label>噪声调度</label>
+          <select id="noiseSchedule">
+            <option value="native">Native</option>
+            <option value="karras">Karras</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>种子</label>
+          <input type="number" id="seed" value="-1" min="-1">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
           <label>步数</label>
           <input type="number" id="steps" value="28" min="1" max="50">
         </div>
@@ -749,6 +805,15 @@
         </div>
         <img class="result-img" id="resultImg" style="display:none" alt="生成结果">
         <div class="result-meta" id="resultMeta" style="display:none"></div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:1rem;">
+        <h2>◆ 生成历史</h2>
+        <div class="history-grid" id="historyGrid"></div>
+        <div id="historyEmpty" class="placeholder" style="margin-top:1rem">
+          <div class="big">📜</div>
+          <div>暂无生成记录</div>
+        </div>
       </div>
     </div>
   </div>
@@ -827,6 +892,7 @@
     const $ = id => document.getElementById(id);
     const LS_KEY = 'artist_gen_settings_v1';
     const NEG_PRESETS_KEY = 'artist_gen_neg_presets_v1';
+    const HISTORY_KEY = 'artist_gen_history_v1';
 
     let settings = { token: '', apiBase: 'https://image.novelai.net', saveToken: true };
     let artists = [], groups = [], artworks = [], images = {};
@@ -868,55 +934,190 @@
       } catch (e) { }
     }
 
+    let history = [];
+
+    async function loadHistory() {
+      if (!db) {
+        history = [];
+        return;
+      }
+      try {
+        const items = await dbGetAll('generationHistory');
+        history = items.sort((a, b) => b.id - a.id);
+      } catch (e) {
+        console.error('加载历史失败:', e);
+        history = [];
+      }
+    }
+
+    async function saveHistoryToDB() {
+      if (!db) return;
+      try {
+        const tx = db.transaction('generationHistory', 'readwrite');
+        const store = tx.objectStore('generationHistory');
+        const all = await new Promise(res => {
+          const req = store.getAll();
+          req.onsuccess = () => res(req.result);
+        });
+        for (const item of all) {
+          await new Promise(res => store.delete(item.id).onsuccess = res);
+        }
+        for (const item of history) {
+          await new Promise(res => store.put(item).onsuccess = res);
+        }
+      } catch (e) {
+        console.error('保存历史失败:', e);
+      }
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function addToHistory(blobUrl, seed, model, w, h) {
+      try {
+        const response = await fetch(blobUrl);
+        const blob = await response.blob();
+        const base64 = await blobToBase64(blob);
+        URL.revokeObjectURL(blobUrl);
+
+        const now = new Date();
+        history.unshift({
+          imageData: base64,
+          seed,
+          model,
+          w,
+          h,
+          date: now.toISOString()
+        });
+
+        if (history.length > 30) {
+          history.pop();
+        }
+
+        await saveHistoryToDB();
+        renderHistory();
+      } catch (e) {
+        console.error('添加到历史失败:', e);
+      }
+    }
+
+    function renderHistory() {
+      const grid = $('historyGrid');
+      const empty = $('historyEmpty');
+
+      if (history.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      grid.innerHTML = history.map((item, i) => {
+        const date = new Date(item.date);
+        const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        return `
+          <div class="history-item" data-idx="${i}">
+            <img src="${item.imageData}" alt="生成记录 ${i + 1}">
+            <div class="history-date">${timeStr}</div>
+          </div>
+        `;
+      }).join('');
+
+      grid.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const idx = parseInt(item.dataset.idx);
+          const record = history[idx];
+          $('resultImg').src = record.imageData;
+          $('resultImg').style.display = 'block';
+          $('resultMeta').innerHTML = `
+            <span class="chip">种子: ${record.seed}</span>
+            <span class="chip">${record.w}×${record.h}</span>
+            <span class="chip">${record.model}</span>
+          `;
+          $('resultMeta').style.display = 'flex';
+          $('placeholder').style.display = 'none';
+        });
+      });
+    }
+
+    let presetsCollapsed = false;
+
     function renderNegPresets() {
       const btns = $('negPresetBtns');
-      btns.innerHTML = negPresets.map((p, i) => `
-        <button class="neg-preset-btn${i === currentPresetIdx ? ' active' : ''}" data-idx="${i}">
-          ${i + 1}. ${p.name}
-          <span class="edit-preset" data-edit="${i}">✎</span>
-          ${i >= DEFAULT_NEG_PRESETS.length ? '<span class="delete-preset" data-del="' + i + '">×</span>' : ''}
-        </button>
-      `).join('');
+      const toggleBtn = $('btnToggleNegPresets');
+
+      if (presetsCollapsed) {
+        btns.innerHTML = `
+          <button class="neg-preset-btn${currentPresetIdx === -1 ? ' active' : ''}" data-idx="${currentPresetIdx}">
+            ${currentPresetIdx >= 0 ? (currentPresetIdx + 1) + '. ' + negPresets[currentPresetIdx].name : '点击展开选择预设'}
+          </button>
+        `;
+        toggleBtn.textContent = '▲ 展开预设列表';
+      } else {
+        btns.innerHTML = negPresets.map((p, i) => `
+          <button class="neg-preset-btn${i === currentPresetIdx ? ' active' : ''}" data-idx="${i}">
+            ${i + 1}. ${p.name}
+            <span class="edit-preset" data-edit="${i}">✎</span>
+            ${i >= DEFAULT_NEG_PRESETS.length ? '<span class="delete-preset" data-del="' + i + '">×</span>' : ''}
+          </button>
+        `).join('');
+        toggleBtn.textContent = '▼ 收起预设列表';
+      }
 
       btns.querySelectorAll('.neg-preset-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           if (e.target.classList.contains('delete-preset') || e.target.classList.contains('edit-preset')) return;
           const idx = parseInt(btn.dataset.idx);
-          currentPresetIdx = idx;
-          $('negativePrompt').value = negPresets[idx].text;
-          renderNegPresets();
-        });
-      });
-
-      btns.querySelectorAll('.delete-preset').forEach(delBtn => {
-        delBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const idx = parseInt(delBtn.dataset.del);
-          if (idx >= DEFAULT_NEG_PRESETS.length) {
-            negPresets.splice(idx, 1);
-            if (currentPresetIdx >= negPresets.length) currentPresetIdx = negPresets.length - 1;
-            if (currentPresetIdx < 0) currentPresetIdx = 0;
-            $('negativePrompt').value = negPresets[currentPresetIdx].text;
-            saveNegPresets();
+          if (idx >= 0) {
+            currentPresetIdx = idx;
+            $('negativePrompt').value = negPresets[idx].text;
             renderNegPresets();
-            toast('预设已删除');
           }
         });
       });
 
-      btns.querySelectorAll('.edit-preset').forEach(editBtn => {
-        editBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const idx = parseInt(editBtn.dataset.edit);
-          editPresetIdx = idx;
-          $('editPresetName').value = negPresets[idx].name;
-          $('editPresetContent').value = negPresets[idx].text;
-          $('editPresetModal').classList.add('active');
+      if (!presetsCollapsed) {
+        btns.querySelectorAll('.delete-preset').forEach(delBtn => {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(delBtn.dataset.del);
+            if (idx >= DEFAULT_NEG_PRESETS.length) {
+              negPresets.splice(idx, 1);
+              if (currentPresetIdx >= negPresets.length) currentPresetIdx = negPresets.length - 1;
+              if (currentPresetIdx < 0) currentPresetIdx = 0;
+              $('negativePrompt').value = negPresets[currentPresetIdx].text;
+              saveNegPresets();
+              renderNegPresets();
+              toast('预设已删除');
+            }
+          });
         });
-      });
+
+        btns.querySelectorAll('.edit-preset').forEach(editBtn => {
+          editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(editBtn.dataset.edit);
+            editPresetIdx = idx;
+            $('editPresetName').value = negPresets[idx].name;
+            $('editPresetContent').value = negPresets[idx].text;
+            $('editPresetModal').classList.add('active');
+          });
+        });
+      }
     }
 
     let editPresetIdx = -1;
+
+    $('btnToggleNegPresets').addEventListener('click', () => {
+      presetsCollapsed = !presetsCollapsed;
+      renderNegPresets();
+    });
 
     // 添加预设弹窗
     $('btnAddPreset').addEventListener('click', () => {
@@ -980,17 +1181,25 @@
     // IndexedDB 连接
     async function initDB() {
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open('NAIGalleryDB', 2);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          db = request.result;
+        const request = indexedDB.open('NAIGalleryDB', 3);
+        request.onerror = (e) => {
+          console.error('IndexedDB 打开失败:', e.target.error);
+          reject(e.target.error);
+        };
+        request.onsuccess = (e) => {
+          db = e.target.result;
+          console.log('IndexedDB 打开成功，版本:', db.version);
           resolve();
         };
-        request.onupgradeneeded = e => {
+        request.onupgradeneeded = (e) => {
           const database = e.target.result;
+          db = database;
+          console.log('IndexedDB 版本升级:', e.oldVersion, '->', e.newVersion);
           if (!database.objectStoreNames.contains('artworks')) database.createObjectStore('artworks', { keyPath: 'id' });
           if (!database.objectStoreNames.contains('artists')) database.createObjectStore('artists', { keyPath: 'id' });
           if (!database.objectStoreNames.contains('groups')) database.createObjectStore('groups', { keyPath: 'id' });
+          if (!database.objectStoreNames.contains('images')) database.createObjectStore('images', { keyPath: 'id' });
+          if (!database.objectStoreNames.contains('generationHistory')) database.createObjectStore('generationHistory', { keyPath: 'id', autoIncrement: true });
         };
       });
     }
@@ -1016,13 +1225,24 @@
     async function loadData() {
       if (!db) return;
       try {
+        console.log('开始加载数据...');
         artists = await dbGetAll('artists');
+        console.log('artists 加载完成:', artists.length);
         groups = await dbGetAll('groups');
+        console.log('groups 加载完成:', groups.length);
         artworks = await dbGetAll('artworks');
-        const imgList = await dbGetAll('images');
-        images = {};
-        imgList.forEach(img => { images[img.id] = img.data; });
-        console.log('数据加载完成:', { artists: artists.length, groups: groups.length, artworks: artworks.length, images: Object.keys(images).length });
+        console.log('artworks 加载完成:', artworks.length);
+
+        try {
+          const imgList = await dbGetAll('images');
+          images = {};
+          imgList.forEach(img => { images[img.id] = img.data; });
+          console.log('images 加载完成:', Object.keys(images).length);
+        } catch (imgErr) {
+          console.warn('images 加载失败:', imgErr);
+          images = {};
+        }
+
         if (artworks.length > 0 && Object.keys(images).length > 0) {
           console.log('示例 artwork:', artworks[0]);
           console.log('示例 image data:', images[artworks[0].id] ? '存在，长度:' + images[artworks[0].id].length : '不存在');
@@ -1109,12 +1329,16 @@
     async function renderDiceResults() {
       const container = $('diceResults');
       const empty = $('diceEmpty');
+      const copyBtn = $('btnCopyString');
+
       if (diceResults.length === 0) {
         container.innerHTML = '';
         empty.style.display = 'flex';
+        copyBtn.style.display = 'none';
         return;
       }
       empty.style.display = 'none';
+      copyBtn.style.display = 'inline-flex';
 
       const cardsHtml = await Promise.all(diceResults.map(async (r, i) => {
         const previewImgs = r.isGroup ? getGroupArtworks(r.id) : getArtistArtworks(r.id);
@@ -1248,6 +1472,25 @@
       renderDiceResults();
     });
 
+    $('btnCopyString').addEventListener('click', () => {
+      const artistString = diceResults.map(r => {
+        const weight = r.weight.toFixed(2);
+        return `${weight}::artist:${r.name} ::`;
+      }).join(', ');
+
+      navigator.clipboard.writeText(artistString).then(() => {
+        toast('画师串已复制', 'ok');
+      }).catch(() => {
+        const textarea = document.createElement('textarea');
+        textarea.value = artistString;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        toast('画师串已复制', 'ok');
+      });
+    });
+
     // 导入画师串
     $('btnImport').addEventListener('click', () => {
       const str = $('importStr').value.trim();
@@ -1325,6 +1568,8 @@
       try {
         await initDB();
         await loadData();
+        await loadHistory();
+        renderHistory();
         toast(`数据已刷新：${artists.length} 画师，${artworks.length} 作品`);
       } catch (e) {
         console.error('刷新失败:', e);
@@ -1383,16 +1628,8 @@
         return null;
       }
       const artistTags = diceResults.map(r => {
-        const weight = r.weight;
-        let suffix = '';
-        if (weight > 1) {
-          const times = Math.round((weight - 1) * 10);
-          suffix = '{' + '}'.repeat(Math.min(times, 10));
-        } else if (weight < 1) {
-          const times = Math.round((1 - weight) * 20);
-          suffix = '[' + ']'.repeat(Math.min(times, 10));
-        }
-        return `artist:${r.name}${suffix}`;
+        const weight = r.weight.toFixed(2);
+        return `${weight}::artist:${r.name} ::`;
       }).join(', ');
       const base = $('fixedPrompt').value.trim();
       return base ? `${artistTags}, ${base}` : artistTags;
@@ -1404,7 +1641,8 @@
 
       const model = $('model').value;
       const [w, h] = $('resolution').value.split('x').map(Number);
-      let seed = Math.floor(Math.random() * 4294967295);
+      const seedInput = parseInt($('seed').value);
+      let seed = seedInput >= 0 ? seedInput : Math.floor(Math.random() * 4294967295);
 
       const isV4 = model.startsWith('nai-diffusion-4');
       const params = {
@@ -1416,7 +1654,7 @@
         seed, n_samples: 1,
         ucPreset: 0, qualityToggle: true,
         negative_prompt: negative,
-        noise_schedule: 'native',
+        noise_schedule: $('noiseSchedule').value,
         sm: false, sm_dyn: false, cfg_rescale: 0,
         dynamic_thresholding: false, prefer_brownian: true,
         deliberate_euler_ancestral_bug: true,
@@ -1477,6 +1715,7 @@
         $('resultMeta').style.display = 'flex';
         setStatus('ok', '生成完成');
         toast('生成成功', 'ok');
+        addToHistory(r.blobUrl, r.seed, r.model, r.w, r.h);
       } catch (err) {
         console.error(err);
         setStatus('err', '生成失败');
@@ -1491,17 +1730,35 @@
       return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 初始化
-    (async () => {
+    async function doInit() {
       try {
+        console.log('=== 开始初始化 ===');
         await initDB();
+        console.log('=== IndexedDB 连接成功 ===');
+
         await loadData();
-        toast(`加载完成：${artists.length} 位画师，${artworks.length} 幅作品`);
+        console.log('=== 数据加载完成 ===');
+        console.log('统计:', { artists: artists.length, groups: groups.length, artworks: artworks.length, images: Object.keys(images).length });
+
+        await loadHistory();
+        console.log('=== 历史记录加载完成 ===');
+        console.log('历史记录数:', history.length);
+
+        renderHistory();
+
+        if (artists.length === 0 && artworks.length === 0) {
+          toast('数据库为空，请先打开「画师库」页面上传作品', 'err');
+        } else {
+          toast(`加载完成：${artists.length} 位画师，${artworks.length} 幅作品`);
+        }
       } catch (e) {
         console.error('加载数据失败:', e);
-        toast('加载数据失败，请确保画师库已打开过', 'err');
+        toast('加载数据失败，请打开浏览器控制台查看详细错误', 'err');
       }
-    })();
+    }
+
+    // 延迟重试机制
+    setTimeout(doInit, 100);
   </script>
 </body>
 
