@@ -720,6 +720,16 @@
       }
     }
 
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     @keyframes slideIn {
       from {
         opacity: 0;
@@ -1953,16 +1963,19 @@
         <div class="topbar">
           <h2>上传画作 <span id="uploadStats" style="font-size:12px;color:var(--text3);font-weight:400;">画师 0 | 画作 0</span>
           </h2>
-          <button class="btn btn-ghost btn-sm" id="uploadLayoutToggle" title="切换紧凑/大图模式">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-              style="width:14px;height:14px;">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-            紧凑
-          </button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" id="toggleDedupSearchBtn" title="打开查重搜索">🔍 查重画师</button>
+            <button class="btn btn-ghost btn-sm" id="uploadLayoutToggle" title="切换紧凑/大图模式">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+                style="width:14px;height:14px;">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+              紧凑
+            </button>
+          </div>
         </div>
         <div class="content" id="uploadContent">
           <div class="upload-zone" id="uploadZone">
@@ -1976,6 +1989,7 @@
             <p style="font-size: 11px; margin-top: 4px;">支持 JPG · PNG · GIF · WebP · BMP</p>
           </div>
           <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+          <div id="uploadList"></div>
           <!-- 批量设置标签区域（上传后才显示） -->
           <div id="batchTagApplyBar" style="display:none;margin-top:16px;">
             <div class="card">
@@ -2031,21 +2045,22 @@
               </div>
             </div>
           </div>
-          <div id="uploadList"></div>
-        </div>
-        <!-- 可移动的查重搜索框 -->
-        <div class="dedup-search-float" id="dedupSearchFloat" style="left:50%;top:120px;transform:translateX(-50%);">
-          <div class="dedup-search-header" id="dedupSearchHeader"
-            style="display:flex;align-items:center;gap:6px;cursor:move;user-select:none;">
-            <span style="font-size:12px;font-weight:600;flex:1;">🔍 查重画师</span>
-            <button class="btn btn-ghost btn-sm" id="dedupMoveUp" title="上移" style="padding:1px 6px;">↑</button>
-            <button class="btn btn-ghost btn-sm" id="dedupMoveDown" title="下移" style="padding:1px 6px;">↓</button>
-            <button class="btn btn-ghost btn-sm" id="dedupMoveLeft" title="左移" style="padding:1px 6px;">←</button>
-            <button class="btn btn-ghost btn-sm" id="dedupMoveRight" title="右移" style="padding:1px 6px;">→</button>
+          <!-- 可移动的查重搜索框（默认隐藏） -->
+          <div class="dedup-search-float" id="dedupSearchFloat"
+            style="display:none;left:50%;top:120px;transform:translateX(-50%);">
+            <div class="dedup-search-header" id="dedupSearchHeader"
+              style="display:flex;align-items:center;gap:6px;cursor:move;user-select:none;">
+              <span style="font-size:12px;font-weight:600;flex:1;">🔍 查重画师</span>
+              <button class="btn btn-ghost btn-sm" id="dedupMoveUp" title="上移" style="padding:1px 6px;">↑</button>
+              <button class="btn btn-ghost btn-sm" id="dedupMoveDown" title="下移" style="padding:1px 6px;">↓</button>
+              <button class="btn btn-ghost btn-sm" id="dedupMoveLeft" title="左移" style="padding:1px 6px;">←</button>
+              <button class="btn btn-ghost btn-sm" id="dedupMoveRight" title="右移" style="padding:1px 6px;">→</button>
+              <button class="btn btn-ghost btn-sm" id="dedupClose" title="关闭" style="padding:1px 6px;">✕</button>
+            </div>
+            <input type="text" id="dedupSearchInput" placeholder="输入画师名查重（失焦自动清空）…" autocomplete="off"
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;margin-top:6px;">
+            <div class="dropdown" id="dedupSearchDropdown" style="margin-top:4px;"></div>
           </div>
-          <input type="text" id="dedupSearchInput" placeholder="输入画师名查重（失焦自动清空）…" autocomplete="off"
-            style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;margin-top:6px;">
-          <div class="dropdown" id="dedupSearchDropdown" style="margin-top:4px;"></div>
         </div>
       </div>
 
@@ -2204,7 +2219,8 @@
             <button class="btn btn-ghost btn-sm" id="recompressBtn" title="把已存储的图片全部重新压缩，大幅减小占用空间">🗜 重压缩已有图片</button>
             <button class="btn btn-ghost btn-sm" id="manualCompressBtn" title="选择数据库中的图片进行压缩">📷 选择压缩图片</button>
             <button class="btn btn-ghost btn-sm" id="compressDiscardedBtn" title="把废弃画师的图片压缩到极小体积">🗑 压缩废弃画师</button>
-            <button class="btn btn-ghost btn-sm" id="exportArtistsTxtBtn" title="导出全部画师名为txt（一行一个）">📝 导出画师txt</button>
+            <button class="btn btn-ghost btn-sm" id="exportArtistsTxtBtn" title="导出全部画师名为txt（一行一个）">📝
+              导出画师txt</button>
             <button class="btn btn-ghost btn-sm" id="exportDiscardedBtn" title="仅导出被标为废弃的画师名">📤 导出废弃画师</button>
             <button class="btn btn-ghost btn-sm" id="normalizeArtistsBtn" title="规范化所有画师名（空格转下划线，去末尾空格/下划线）">🔧
               规范化画师名</button>
@@ -2341,11 +2357,21 @@
     let db;
     let artworks = [], artists = [], groups = [], tags = [], images = {};
 
-    // ==================== 图片按需加载 + LRU 缓存 ====================
-    // 不再启动时全量加载图片，改为按需从 IndexedDB 读取
-    // LRU 缓存最多保留 MAX_IMG_CACHE 张，超出时淘汰最久未用的
+    // ==================== 图片按需加载 + LRU 缓存 + 并发控制 ====================
     const MAX_IMG_CACHE = 150;
-    const imgCache = new Map(); // id -> dataURL，按插入顺序即为LRU顺序
+    const MAX_CONCURRENT_LOADS = 4;
+    const imgCache = new Map();
+    const loadQueue = [];
+    let activeLoads = 0;
+    const loadPromises = new Map();
+    let cacheHits = 0, cacheMisses = 0;
+
+    function getCacheStats() {
+      const avgSize = imgCache.size > 0
+        ? [...imgCache.values()].reduce((acc, d) => acc + d.length, 0) / imgCache.size
+        : 0;
+      return { hits: cacheHits, misses: cacheMisses, size: imgCache.size, avgSizeKB: Math.round(avgSize / 1024) };
+    }
 
     async function dbGetOne(store, id) {
       return new Promise((res, rej) => {
@@ -2356,38 +2382,88 @@
       });
     }
 
+    const MAX_RETRY_ATTEMPTS = 2;
+    const RETRY_DELAY = 300;
+
+    async function _loadFromDB(id, attempt = 0) {
+      try {
+        const row = await dbGetOne("images", id);
+        if (row?.data) {
+          _cacheSet(id, row.data);
+          return row.data;
+        }
+      } catch (e) {
+        console.warn("DB read failed for", id, e);
+        if (attempt < MAX_RETRY_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, RETRY_DELAY * (attempt + 1)));
+          return _loadFromDB(id, attempt + 1);
+        }
+      }
+      return null;
+    }
+
     async function getImage(id) {
       if (!id) return null;
-      // 内存缓存命中：移到末尾（最近使用）
       if (imgCache.has(id)) {
+        cacheHits++;
         const val = imgCache.get(id);
         imgCache.delete(id);
         imgCache.set(id, val);
         return val;
       }
-      // 同步检查旧的 images 对象（上传/重压时会写入）
       if (images[id]) {
+        cacheHits++;
         _cacheSet(id, images[id]);
         return images[id];
       }
-      // 从 IndexedDB 读
-      try {
-        const row = await dbGetOne("images", id);
-        if (row?.data) { _cacheSet(id, row.data); return row.data; }
-      } catch (e) { }
-      return null;
+      if (loadPromises.has(id)) {
+        return loadPromises.get(id);
+      }
+      cacheMisses++;
+      return new Promise((resolve) => {
+        loadQueue.push({ id, resolve });
+        _processLoadQueue();
+      });
+    }
+
+    function _processLoadQueue() {
+      while (loadQueue.length > 0 && activeLoads < MAX_CONCURRENT_LOADS) {
+        const { id, resolve } = loadQueue.shift();
+        if (imgCache.has(id)) {
+          resolve(imgCache.get(id));
+          continue;
+        }
+        activeLoads++;
+        const promise = _loadFromDB(id);
+        loadPromises.set(id, promise);
+        promise.then((data) => {
+          resolve(data);
+        }).catch(() => {
+          resolve(null);
+        }).finally(() => {
+          activeLoads--;
+          loadPromises.delete(id);
+          _processLoadQueue();
+        });
+      }
     }
 
     function _cacheSet(id, data) {
       if (imgCache.has(id)) imgCache.delete(id);
       imgCache.set(id, data);
-      images[id] = data; // 同步写回 images，兼容其他代码读取
-      // 超出上限时淘汰最老的
-      if (imgCache.size > MAX_IMG_CACHE) {
+      images[id] = data;
+      while (imgCache.size > MAX_IMG_CACHE) {
         const oldest = imgCache.keys().next().value;
         imgCache.delete(oldest);
         delete images[oldest];
       }
+    }
+
+    function clearImageCache() {
+      imgCache.clear();
+      Object.keys(images).forEach(k => delete images[k]);
+      cacheHits = 0;
+      cacheMisses = 0;
     }
     let currentEditArtwork = null, currentEditArtist = null, currentEditGroup = null;
     let diceScope = "all";
@@ -2799,6 +2875,7 @@
           if (!id || placeholder.dataset.loaded) return;
           placeholder.dataset.loaded = "1";
           window._galleryObserver.unobserve(placeholder);
+          placeholder.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:20px;height:20px;animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" strokeLinecap="round"/></svg>`;
           const data = await getImage(id);
           if (data) {
             const img = document.createElement("img");
@@ -2808,11 +2885,26 @@
             img.style.cssText = "opacity:0;transition:opacity 0.2s;";
             placeholder.replaceWith(img);
             requestAnimationFrame(() => { img.style.opacity = "1"; });
+          } else {
+            placeholder.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:24px;height:24px;color:var(--danger);"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
           }
         });
-      }, { rootMargin: "200px" }); // 提前200px开始加载
+      }, { rootMargin: "400px" });
       grid.querySelectorAll(".lazy-thumb").forEach(el => {
         window._galleryObserver.observe(el);
+      });
+      // 预加载：加载当前页前后各半页的图片到缓存
+      const preloadIds = [];
+      const currentStart = (galleryPage - 1) * galleryPageSize;
+      const preloadStart = Math.max(0, currentStart - galleryPageSize / 2);
+      const preloadEnd = Math.min(filtered.length, currentStart + galleryPageSize * 2);
+      for (let i = preloadStart; i < preloadEnd; i++) {
+        preloadIds.push(filtered[i].id);
+      }
+      preloadIds.forEach(id => {
+        if (!imgCache.has(id) && !images[id]) {
+          getImage(id).catch(() => { });
+        }
       });
       // 卡片点击放大：点击卡片任意位置（非按钮）即可打开大图
       grid.querySelectorAll(".artwork-card").forEach(card => {
@@ -4156,10 +4248,21 @@ ${escapeHtml(a.name)}
       const input = document.getElementById("dedupSearchInput");
       const dropdown = document.getElementById("dedupSearchDropdown");
       if (!float || !input) return;
+      // 按钮切换显示/隐藏
+      const toggleBtn = document.getElementById("toggleDedupSearchBtn");
+      const closeBtn = document.getElementById("dedupClose");
+      const toggle = () => {
+        float.style.display = float.style.display === "none" ? "block" : "none";
+        if (float.style.display === "block") {
+          setTimeout(() => input.focus(), 100);
+        }
+      };
+      toggleBtn?.addEventListener("click", toggle);
+      closeBtn?.addEventListener("click", toggle);
       // 拖拽移动
       let dragStart = null;
       header?.addEventListener("mousedown", (e) => {
-        if (e.target.tagName === "BUTTON") return; // 方向键不触发拖拽
+        if (e.target.tagName === "BUTTON") return;
         dragStart = { x: e.clientX, y: e.clientY, left: float.offsetLeft, top: float.offsetTop };
         float.style.transform = "none";
         float.style.left = dragStart.left + "px";
@@ -4497,18 +4600,30 @@ ${escapeHtml(a.name)}
         </div>`;
       }).join("") + `</div>`;
       // 懒加载作品图
-      resultEl.querySelectorAll(".lazy-dice-thumb").forEach(async el => {
-        const data = await getImage(el.dataset.id);
-        if (data) {
-          const img = document.createElement("img");
-          img.src = data;
-          img.style.cssText = "width:100%;height:auto;display:block;";
-          img.addEventListener("click", async () => {
-            const aw = artworks.find(a => a.id === el.dataset.id);
-            openLightbox(await getImage(el.dataset.id), aw?.title, getArtistName(aw?.artistId), aw?.source, aw?.nai);
-          });
-          el.appendChild(img);
-        }
+      if (window._diceObserver) window._diceObserver.disconnect();
+      window._diceObserver = new IntersectionObserver((entries) => {
+        entries.forEach(async entry => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          if (el.dataset.loaded) return;
+          el.dataset.loaded = "1";
+          window._diceObserver.unobserve(el);
+          const data = await getImage(el.dataset.id);
+          if (data) {
+            const img = document.createElement("img");
+            img.src = data;
+            img.style.cssText = "width:100%;height:auto;display:block;opacity:0;transition:opacity 0.2s;";
+            img.addEventListener("click", async () => {
+              const aw = artworks.find(a => a.id === el.dataset.id);
+              openLightbox(await getImage(el.dataset.id), aw?.title, getArtistName(aw?.artistId), aw?.source, aw?.nai);
+            });
+            el.appendChild(img);
+            requestAnimationFrame(() => { img.style.opacity = "1"; });
+          }
+        });
+      }, { rootMargin: "200px" });
+      resultEl.querySelectorAll(".lazy-dice-thumb").forEach(el => {
+        window._diceObserver.observe(el);
       });
       // 事件绑定
       resultEl.querySelectorAll(".pin-artist-btn").forEach(b => b.addEventListener("click", (e) => {
@@ -4592,18 +4707,22 @@ ${escapeHtml(a.name)}
           else if (adminArtSort === "timeDesc") sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
           else if (adminArtSort === "letterAsc") sorted.sort((a, b) => getFirstLetter(getArtistName(a.artistId)).localeCompare(getFirstLetter(getArtistName(b.artistId))));
           else if (adminArtSort === "letterDesc") sorted.sort((a, b) => getFirstLetter(getArtistName(b.artistId)).localeCompare(getFirstLetter(getArtistName(a.artistId))));
-          tbody.innerHTML = sorted.map(aw => `<tr>${adminBatchMode ? `<td><input type="checkbox" class="admin-row-check" data-id="${aw.id}"></td>` : ""}<td><div class="admin-lazy-thumb" data-id="${aw.id}" style="width:40px;height:40px;background:var(--surface3);border-radius:4px;"></div></td><td>${escapeHtml(aw.title || "无标题")}</td><td>${escapeHtml(getArtistName(aw.artistId))}</td><td>${aw.tags?.length || 0}</td><td>${aw.createdAt ? new Date(aw.createdAt).toLocaleDateString("zh-CN") : "—"}</td><td><button class="btn btn-ghost btn-sm admin-edit-artwork" data-id="${aw.id}">编辑</button></td></tr>`).join("");
-          const adminObserver = new IntersectionObserver(async (entries) => {
+          tbody.innerHTML = sorted.map(aw => `<tr>${adminBatchMode ? `<td><input type="checkbox" class="admin-row-check" data-id="${aw.id}"></td>` : ""}<td><div class="admin-lazy-thumb" data-id="${aw.id}" style="width:40px;height:40px;background:var(--surface3);border-radius:4px;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:14px;height:14px;color:var(--text3);"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/></svg></div></td><td>${escapeHtml(aw.title || "无标题")}</td><td>${escapeHtml(getArtistName(aw.artistId))}</td><td>${aw.tags?.length || 0}</td><td>${aw.createdAt ? new Date(aw.createdAt).toLocaleDateString("zh-CN") : "—"}</td><td><button class="btn btn-ghost btn-sm admin-edit-artwork" data-id="${aw.id}">编辑</button></td></tr>`).join("");
+          if (window._adminObserver) window._adminObserver.disconnect();
+          window._adminObserver = new IntersectionObserver(async (entries) => {
             for (const entry of entries) {
               if (!entry.isIntersecting) continue;
               const el = entry.target;
               if (el.dataset.loaded) continue;
-              el.dataset.loaded = "1"; adminObserver.unobserve(el);
+              el.dataset.loaded = "1";
+              window._adminObserver.unobserve(el);
+              el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:14px;height:14px;animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" strokeLinecap="round"/></svg>`;
               const data = await getImage(el.dataset.id);
               if (data) el.innerHTML = `<img src="${data}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">`;
+              else el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:14px;height:14px;color:var(--danger);"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>`;
             }
-          }, { rootMargin: "100px" });
-          tbody.querySelectorAll(".admin-lazy-thumb").forEach(el => adminObserver.observe(el));
+          }, { rootMargin: "200px" });
+          tbody.querySelectorAll(".admin-lazy-thumb").forEach(el => window._adminObserver.observe(el));
           document.querySelectorAll(".admin-edit-artwork").forEach(btn => btn.addEventListener("click", () => openArtworkModal(btn.dataset.id)));
           if (adminBatchMode) _wireAdminBatch(async (ids) => {
             if (!confirm(`确定删除选中的 ${ids.length} 件画作？`)) return;
