@@ -366,6 +366,54 @@
       padding-top: 0 !important;
     }
 
+    .collapse-group {
+      margin-top: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--surface2);
+    }
+
+    .collapse-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 0.75rem;
+      cursor: pointer;
+      background: var(--surface3);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text2);
+      transition: background 0.15s;
+    }
+
+    .collapse-header:hover {
+      background: var(--surface3);
+      opacity: 0.85;
+    }
+
+    .collapse-icon {
+      font-size: 0.65rem;
+      color: var(--accent);
+      transition: transform 0.2s ease;
+    }
+
+    .collapse-header.collapsed .collapse-icon {
+      transform: rotate(-90deg);
+    }
+
+    .collapse-content {
+      padding: 0.85rem;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.2s;
+    }
+
+    .collapse-content.collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      padding: 0 !important;
+    }
+
     /* 负面词预设 */
     .neg-presets {
       display: flex;
@@ -786,51 +834,75 @@
           <textarea id="negativePrompt" placeholder="lowres, bad anatomy, bad hands..."></textarea>
           <button class="btn btn-xs" id="btnSaveCurrentPreset" style="margin-top:0.3rem">保存当前为新预设</button>
         </div>
-        <div class="row-3">
-          <div class="field">
-            <label>模型</label>
-            <select id="model">
-              <option value="nai-diffusion-4-5-full">V4.5 Full</option>
-              <option value="nai-diffusion-4-5-curated">V4.5 Curated</option>
-              <option value="nai-diffusion-4-full">V4 Full</option>
-              <option value="nai-diffusion-3">V3</option>
-            </select>
+
+        <div class="collapse-group">
+          <div class="collapse-header" id="modelSamplingHeader">
+            <span class="collapse-icon">▼</span>
+            <span>◆ 模型与采样</span>
           </div>
-          <div class="field">
-            <label>分辨率</label>
-            <select id="resolution">
-              <option value="832x1216">832×1216</option>
-              <option value="1216x832">1216×832</option>
-              <option value="1024x1024">1024×1024</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>采样器</label>
-            <select id="sampler">
-              <option value="k_euler">Euler</option>
-              <option value="k_euler_ancestral">Euler A</option>
-              <option value="k_dpmpp_2m">DPM++ 2M</option>
-              <option value="k_dpmpp_2m_sde">DPM++ 2M SDE</option>
-            </select>
-          </div>
-        </div>
-        <div class="row-3">
-          <div class="field">
-            <label>噪声调度</label>
-            <select id="noiseSchedule">
-              <option value="native">Native</option>
-              <option value="karras">Karras</option>
-              <option value="exponential">Exponential</option>
-              <option value="polyexponential">Polyexponential</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>步数</label>
-            <input type="number" id="steps" value="28" min="1" max="50">
-          </div>
-          <div class="field">
-            <label>CFG</label>
-            <input type="number" id="scale" value="5" min="0" max="10" step="0.5">
+          <div class="collapse-content" id="modelSamplingContent">
+            <div class="field">
+              <label>模型</label>
+              <select id="model">
+                <option value="nai-diffusion-4-5-full">NovelAI Diffusion V4.5 Full</option>
+                <option value="nai-diffusion-4-5-curated">NovelAI Diffusion V4.5 Curated</option>
+                <option value="nai-diffusion-4-full">NovelAI Diffusion V4 Full</option>
+                <option value="nai-diffusion-3">NovelAI Diffusion V3</option>
+              </select>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>分辨率</label>
+                <select id="resolution">
+                  <option value="832x1216">832 × 1216 (竖)</option>
+                  <option value="1216x832">1216 × 832 (横)</option>
+                  <option value="1024x1024">1024 × 1024 (方)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>采样器</label>
+                <select id="sampler">
+                  <option value="k_euler">Euler</option>
+                  <option value="k_euler_ancestral">Euler Ancestral</option>
+                  <option value="k_dpmpp_2m">DPM++ 2M</option>
+                  <option value="k_dpmpp_2m_sde">DPM++ 2M SDE</option>
+                </select>
+              </div>
+            </div>
+            <div class="row-3">
+              <div class="field">
+                <label>步数</label>
+                <input type="number" id="steps" value="28" min="1" max="50">
+              </div>
+              <div class="field">
+                <label>引导 (CFG)</label>
+                <input type="number" id="scale" value="6" min="0" max="10" step="0.5">
+              </div>
+              <div class="field">
+                <label>种子</label>
+                <input type="number" id="seed" value="-1" min="-1" max="999999999">
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>UC 预设</label>
+                <select id="ucPreset">
+                  <option value="none">None</option>
+                  <option value="soft">Soft</option>
+                  <option value="medium">Medium</option>
+                  <option value="heavy">Heavy</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>噪声调度</label>
+                <select id="noiseSchedule">
+                  <option value="native">Native</option>
+                  <option value="karras">Karras</option>
+                  <option value="exponential">Exponential</option>
+                  <option value="polyexponential">Polyexponential</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -949,7 +1021,21 @@
     const NEG_PRESETS_KEY = 'artist_gen_neg_presets_v1';
     const HISTORY_KEY = 'artist_gen_history_v1';
 
-    let settings = { token: '', apiBase: 'https://image.novelai.net', saveToken: true };
+    let settings = {
+      token: '',
+      apiBase: 'https://image.novelai.net',
+      saveToken: true,
+      model: 'nai-diffusion-4-5-full',
+      resolution: '832x1216',
+      sampler: 'k_euler',
+      noiseSchedule: 'native',
+      steps: 28,
+      scale: 6,
+      seed: -1,
+      ucPreset: 'none',
+      fixedPrompt: '',
+      negativePrompt: ''
+    };
     let artists = [], groups = [], artworks = [], images = {};
     let diceResults = [];
     let db = null;
@@ -973,6 +1059,15 @@
     } catch (e) { }
     $('token').value = settings.token || '';
     $('apiBase').value = settings.apiBase || 'https://image.novelai.net';
+    $('model').value = settings.model || 'nai-diffusion-4-5-full';
+    $('resolution').value = settings.resolution || '832x1216';
+    $('sampler').value = settings.sampler || 'k_euler';
+    $('noiseSchedule').value = settings.noiseSchedule || 'native';
+    $('steps').value = settings.steps || 28;
+    $('scale').value = settings.scale || 6;
+    $('seed').value = settings.seed || -1;
+    $('ucPreset').value = settings.ucPreset || 'none';
+    $('fixedPrompt').value = settings.fixedPrompt || '';
 
     // 加载负面词预设
     function loadNegPresets() {
@@ -1096,7 +1191,7 @@
 
     // 初始化负面词预设
     loadNegPresets();
-    $('negativePrompt').value = negPresets[currentPresetIdx]?.text || '';
+    $('negativePrompt').value = settings.negativePrompt || negPresets[currentPresetIdx]?.text || '';
     renderNegPresets();
 
     // 加载生成历史
@@ -1559,6 +1654,16 @@
     $('btnSaveSettings').addEventListener('click', () => {
       settings.token = $('token').value;
       settings.apiBase = $('apiBase').value;
+      settings.model = $('model').value;
+      settings.resolution = $('resolution').value;
+      settings.sampler = $('sampler').value;
+      settings.noiseSchedule = $('noiseSchedule').value;
+      settings.steps = parseInt($('steps').value) || 28;
+      settings.scale = parseFloat($('scale').value) || 6;
+      settings.seed = parseInt($('seed').value) || -1;
+      settings.ucPreset = $('ucPreset').value;
+      settings.fixedPrompt = $('fixedPrompt').value;
+      settings.negativePrompt = $('negativePrompt').value;
       localStorage.setItem(LS_KEY, JSON.stringify(settings));
       $('settingsModal').classList.remove('active');
       toast('设置已保存');
@@ -1613,7 +1718,11 @@
 
       const model = $('model').value;
       const [w, h] = $('resolution').value.split('x').map(Number);
-      let seed = Math.floor(Math.random() * 4294967295);
+      const seedInput = parseInt($('seed').value);
+      let seed = seedInput === -1 ? Math.floor(Math.random() * 4294967295) : seedInput;
+
+      const ucPresetMap = { none: 0, soft: 1, medium: 2, heavy: 3 };
+      const ucPresetValue = ucPresetMap[$('ucPreset').value] || 0;
 
       const isV4 = model.startsWith('nai-diffusion-4');
       const params = {
@@ -1623,7 +1732,7 @@
         sampler: $('sampler').value,
         steps: parseInt($('steps').value),
         seed, n_samples: 1,
-        ucPreset: 0, qualityToggle: true,
+        ucPreset: ucPresetValue, qualityToggle: true,
         negative_prompt: negative,
         noise_schedule: $('noiseSchedule').value,
         sm: false, sm_dyn: false, cfg_rescale: 0,
@@ -1710,6 +1819,7 @@
         initCollapsible('diceResultsHeader', 'diceResultsContent');
         initCollapsible('genSettingsHeader', 'genSettingsContent');
         initCollapsible('historyHeader', 'historyContent');
+        initCollapsible('modelSamplingHeader', 'modelSamplingContent');
         toast(`加载完成：${artists.length} 位画师，${artworks.length} 幅作品`);
       } catch (e) {
         console.error('加载数据失败:', e);
