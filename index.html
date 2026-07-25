@@ -3129,14 +3129,26 @@
       });
       html += `</div>`;
       container.innerHTML = html;
-      // 懒加载缩略图
-      container.querySelectorAll(".artist-thumb-lazy").forEach(async el => {
-        const data = await getImage(el.dataset.id);
-        if (!data) return;
-        const img = document.createElement("img");
-        img.style.cssText = "width:56px;height:56px;border-radius:6px;object-fit:cover;cursor:pointer;";
-        img.src = data;
-        el.replaceWith(img);
+      // 懒加载缩略图（IntersectionObserver，避免一次性载入全部图片导致 OOM）
+      if (window._artistThumbObserver) window._artistThumbObserver.disconnect();
+      window._artistThumbObserver = new IntersectionObserver((entries) => {
+        entries.forEach(async entry => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          const id = el.dataset.id;
+          if (!id || el.dataset.loaded) return;
+          el.dataset.loaded = "1";
+          window._artistThumbObserver.unobserve(el);
+          const data = await getImage(id);
+          if (!data) return;
+          const img = document.createElement("img");
+          img.style.cssText = "width:56px;height:56px;border-radius:6px;object-fit:cover;cursor:pointer;";
+          img.src = data;
+          el.replaceWith(img);
+        });
+      }, { rootMargin: "200px" });
+      container.querySelectorAll(".artist-thumb-lazy").forEach(el => {
+        window._artistThumbObserver.observe(el);
       });
       // 点击切换（异步加载下一张）
       document.querySelectorAll(".artist-thumb-wrap").forEach(wrap => {
@@ -3391,14 +3403,26 @@
       });
       html += `</div>`;
       container.innerHTML = html;
-      // 懒加载缩略图
-      container.querySelectorAll(".artist-thumb-lazy").forEach(async el => {
-        const data = await getImage(el.dataset.id);
-        if (!data) return;
-        const img = document.createElement("img");
-        img.style.cssText = "width:56px;height:56px;border-radius:6px;object-fit:cover;cursor:pointer;";
-        img.src = data;
-        el.replaceWith(img);
+      // 懒加载缩略图（IntersectionObserver，避免一次性载入全部图片导致 OOM）
+      if (window._groupThumbObserver) window._groupThumbObserver.disconnect();
+      window._groupThumbObserver = new IntersectionObserver((entries) => {
+        entries.forEach(async entry => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          const id = el.dataset.id;
+          if (!id || el.dataset.loaded) return;
+          el.dataset.loaded = "1";
+          window._groupThumbObserver.unobserve(el);
+          const data = await getImage(id);
+          if (!data) return;
+          const img = document.createElement("img");
+          img.style.cssText = "width:56px;height:56px;border-radius:6px;object-fit:cover;cursor:pointer;";
+          img.src = data;
+          el.replaceWith(img);
+        });
+      }, { rootMargin: "200px" });
+      container.querySelectorAll(".artist-thumb-lazy").forEach(el => {
+        window._groupThumbObserver.observe(el);
       });
       // 点击切换
       document.querySelectorAll(".artist-thumb-wrap").forEach(wrap => {
