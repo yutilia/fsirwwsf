@@ -2217,6 +2217,8 @@
             <button class="btn btn-primary btn-sm" id="importDataBtn">📂 覆盖式导入</button>
             <button class="btn btn-ghost btn-sm" id="dedupImportBtn" title="在已有数据基础上自动去重合并">🔁 去重式导入</button>
             <button class="btn btn-ghost btn-sm" id="recompressBtn" title="把已存储的图片全部重新压缩，大幅减小占用空间">🗜 重压缩已有图片</button>
+            <button class="btn btn-ghost btn-sm" id="generateThumbBtn" title="为所有图片生成缩略图（200px短边），大幅降低浏览时内存占用">🖼
+              生成缩略图</button>
             <button class="btn btn-ghost btn-sm" id="manualCompressBtn" title="选择数据库中的图片进行压缩">📷 选择压缩图片</button>
             <button class="btn btn-ghost btn-sm" id="compressDiscardedBtn" title="把废弃画师的图片压缩到极小体积">🗑 压缩废弃画师</button>
             <button class="btn btn-ghost btn-sm" id="exportArtistsTxtBtn" title="导出全部画师名为txt（一行一个）">📝
@@ -2353,7 +2355,7 @@
   <script>
     // ==================== 数据库 ====================
     const DB_NAME = "NAIGalleryDB";
-    const DB_VER = 2;
+    const DB_VER = 3;
     let db;
     let artworks = [], artists = [], groups = [], tags = [], images = {};
 
@@ -2385,77 +2387,85 @@
     const MAX_RETRY_ATTEMPTS = 2;
     const RETRY_DELAY = 300;
 
-    async function _loadFromDB(id, attempt = 0) {
+    async function _loadFromDB(id, useThumb = false, attempt = 0) {
       try {
-        const row = await dbGetOne("images", id);
+        const storeName = useThumb ? "images_thumb" : "images";
+        const row = await dbGetOne(storeName, id);
         if (row?.data) {
-          _cacheSet(id, row.data);
+          _cacheSet(id, row.data, useThumb);
           return row.data;
+        }
+        // 如果缩略图不存在，回退到原图（兼容旧数据）
+        if (useThumb) {
+          return await _loadFromDB(id, false, attempt);
         }
       } catch (e) {
         console.warn("DB read failed for", id, e);
         if (attempt < MAX_RETRY_ATTEMPTS) {
           await new Promise(r => setTimeout(r, RETRY_DELAY * (attempt + 1)));
-          return _loadFromDB(id, attempt + 1);
+          return _loadFromDB(id, useThumb, attempt + 1);
         }
       }
       return null;
     }
 
-    async function getImage(id) {
+    async function getImage(id, useThumb = false) {
       if (!id) return null;
-      if (imgCache.has(id)) {
+      const cacheKey = useThumb ? "t_" + id : id;
+      if (imgCache.has(cacheKey)) {
         cacheHits++;
-        const val = imgCache.get(id);
-        imgCache.delete(id);
-        imgCache.set(id, val);
+        const val = imgCache.get(cacheKey);
+        imgCache.delete(cacheKey);
+        imgCache.set(cacheKey, val);
         return val;
       }
-      if (images[id]) {
+      if (!useThumb && images[id]) {
         cacheHits++;
         _cacheSet(id, images[id]);
         return images[id];
       }
-      if (loadPromises.has(id)) {
-        return loadPromises.get(id);
+      if (loadPromises.has(cacheKey)) {
+        return loadPromises.get(cacheKey);
       }
       cacheMisses++;
       return new Promise((resolve) => {
-        loadQueue.push({ id, resolve });
+        loadQueue.push({ id, resolve, useThumb });
         _processLoadQueue();
       });
     }
 
     function _processLoadQueue() {
       while (loadQueue.length > 0 && activeLoads < MAX_CONCURRENT_LOADS) {
-        const { id, resolve } = loadQueue.shift();
-        if (imgCache.has(id)) {
-          resolve(imgCache.get(id));
+        const { id, resolve, useThumb = false } = loadQueue.shift();
+        const cacheKey = useThumb ? "t_" + id : id;
+        if (imgCache.has(cacheKey)) {
+          resolve(imgCache.get(cacheKey));
           continue;
         }
         activeLoads++;
-        const promise = _loadFromDB(id);
-        loadPromises.set(id, promise);
+        const promise = _loadFromDB(id, useThumb);
+        loadPromises.set(cacheKey, promise);
         promise.then((data) => {
           resolve(data);
         }).catch(() => {
           resolve(null);
         }).finally(() => {
           activeLoads--;
-          loadPromises.delete(id);
+          loadPromises.delete(cacheKey);
           _processLoadQueue();
         });
       }
     }
 
-    function _cacheSet(id, data) {
-      if (imgCache.has(id)) imgCache.delete(id);
-      imgCache.set(id, data);
-      images[id] = data;
+    function _cacheSet(id, data, isThumb = false) {
+      const cacheKey = isThumb ? "t_" + id : id;
+      if (imgCache.has(cacheKey)) imgCache.delete(cacheKey);
+      imgCache.set(cacheKey, data);
+      if (!isThumb) images[id] = data;
       while (imgCache.size > MAX_IMG_CACHE) {
         const oldest = imgCache.keys().next().value;
         imgCache.delete(oldest);
-        delete images[oldest];
+        if (!oldest.startsWith("t_")) delete images[oldest];
       }
     }
 
@@ -2567,6 +2577,7 @@
           if (!db.objectStoreNames.contains("groups")) db.createObjectStore("groups", { keyPath: "id" });
           if (!db.objectStoreNames.contains("tags")) db.createObjectStore("tags", { keyPath: "id" });
           if (!db.objectStoreNames.contains("images")) db.createObjectStore("images", { keyPath: "id" });
+          if (!db.objectStoreNames.contains("images_thumb")) db.createObjectStore("images_thumb", { keyPath: "id" });
           if (!db.objectStoreNames.contains("albums")) db.createObjectStore("albums", { keyPath: "id" });
         };
         req.onsuccess = (e) => { db = e.target.result; res(db); };
@@ -2876,7 +2887,7 @@
           placeholder.dataset.loaded = "1";
           window._galleryObserver.unobserve(placeholder);
           placeholder.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:20px;height:20px;animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" strokeLinecap="round"/></svg>`;
-          const data = await getImage(id);
+          const data = await getImage(id, true);
           if (data) {
             const img = document.createElement("img");
             img.className = "artwork-thumb";
@@ -2903,7 +2914,7 @@
       }
       preloadIds.forEach(id => {
         if (!imgCache.has(id) && !images[id]) {
-          getImage(id).catch(() => { });
+          getImage(id, true).catch(() => { });
         }
       });
       // 卡片点击放大：点击卡片任意位置（非按钮）即可打开大图
@@ -3139,7 +3150,7 @@
           if (!id || el.dataset.loaded) return;
           el.dataset.loaded = "1";
           window._artistThumbObserver.unobserve(el);
-          const data = await getImage(id);
+          const data = await getImage(id, true);
           if (!data) return;
           const img = document.createElement("img");
           img.style.cssText = "width:56px;height:56px;border-radius:6px;object-fit:cover;cursor:pointer;";
@@ -3156,7 +3167,7 @@
           const ids = JSON.parse(wrap.dataset.ids);
           let idx = (parseInt(wrap.dataset.idx) + 1) % ids.length;
           wrap.dataset.idx = idx;
-          const data = await getImage(ids[idx]);
+          const data = await getImage(ids[idx], true);
           const img = wrap.querySelector("img");
           if (img && data) img.src = data;
         });
@@ -3413,7 +3424,7 @@
           if (!id || el.dataset.loaded) return;
           el.dataset.loaded = "1";
           window._groupThumbObserver.unobserve(el);
-          const data = await getImage(id);
+          const data = await getImage(id, true);
           if (!data) return;
           const img = document.createElement("img");
           img.style.cssText = "width:56px;height:56px;border-radius:6px;object-fit:cover;cursor:pointer;";
@@ -3430,7 +3441,7 @@
           const ids = JSON.parse(wrap.dataset.ids);
           let idx = (parseInt(wrap.dataset.idx) + 1) % ids.length;
           wrap.dataset.idx = idx;
-          const data = await getImage(ids[idx]);
+          const data = await getImage(ids[idx], true);
           const img = wrap.querySelector("img");
           if (img && data) img.src = data;
         });
@@ -4135,6 +4146,7 @@ ${escapeHtml(a.name)}
     }
 
     // 压缩图片为 JPEG（保留 NAI 元数据在 artwork 对象里，不依赖图片文件）
+    // 返回 { full: dataUrl, thumb: dataUrl }
     async function compressImage(file, maxW = 1200, maxH = 1600, quality = 0.82) {
       try {
         const bitmap = await createImageBitmap(file);
@@ -4142,21 +4154,36 @@ ${escapeHtml(a.name)}
         const ratio = Math.min(1, maxW / width, maxH / height);
         const w = Math.max(1, Math.round(width * ratio));
         const h = Math.max(1, Math.round(height * ratio));
+
+        // 生成原图
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#ffffff";        // 关键：铺白底，防透明变黑
+        ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(bitmap, 0, 0, w, h);
+        const fullData = canvas.toDataURL("image/jpeg", quality);
+
+        // 生成缩略图（200px 短边）
+        const thumbRatio = Math.min(1, 200 / width, 200 / height);
+        const tw = Math.max(1, Math.round(width * thumbRatio));
+        const th = Math.max(1, Math.round(height * thumbRatio));
+        canvas.width = tw; canvas.height = th;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, tw, th);
+        ctx.drawImage(bitmap, 0, 0, tw, th);
+        const thumbData = canvas.toDataURL("image/jpeg", 0.75);
+
         bitmap.close();
-        return canvas.toDataURL("image/jpeg", quality);
+        return { full: fullData, thumb: thumbData };
       } catch (e) {
         // 任何异常都退回原始文件，绝不存黑图
-        return await new Promise(res => {
+        const dataUrl = await new Promise(res => {
           const fr = new FileReader();
           fr.onload = ev => res(ev.target.result);
           fr.readAsDataURL(file);
         });
+        return { full: dataUrl, thumb: dataUrl };
       }
     }
 
@@ -4190,10 +4217,10 @@ ${escapeHtml(a.name)}
       for (const fi of uploadFiles) {
         const id = uid();
         // 压缩图片（JPEG 存储，大幅减小体积）
-        const data = await compressImage(fi.file);
+        const { full: fullData, thumb: thumbData } = await compressImage(fi.file);
         // 原始文件大小估算（用于提示）
         totalOriginal += fi.file.size;
-        totalCompressed += Math.round(data.length * 0.75); // base64 转字节估算
+        totalCompressed += Math.round(fullData.length * 0.75); // base64 转字节估算
         // 提取并保存 NAI 元数据到 artwork（不依赖图片文件）
         let naiData = null;
         if (fi.naiMeta) {
@@ -4216,8 +4243,9 @@ ${escapeHtml(a.name)}
           ...(naiData ? { nai: naiData } : {})
         };
         await dbPut("artworks", newArtwork);
-        await dbPut("images", { id, data });
-        artworks.push(newArtwork); images[id] = data;
+        await dbPut("images", { id, data: fullData });
+        await dbPut("images_thumb", { id, data: thumbData });
+        artworks.push(newArtwork); images[id] = fullData;
         lastUploadIds.push(id);
       }
       uploadFiles = [];
@@ -4632,7 +4660,7 @@ ${escapeHtml(a.name)}
           if (el.dataset.loaded) return;
           el.dataset.loaded = "1";
           window._diceObserver.unobserve(el);
-          const data = await getImage(el.dataset.id);
+          const data = await getImage(el.dataset.id, true);
           if (data) {
             const img = document.createElement("img");
             img.src = data;
@@ -4741,7 +4769,7 @@ ${escapeHtml(a.name)}
               el.dataset.loaded = "1";
               window._adminObserver.unobserve(el);
               el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:14px;height:14px;animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" strokeLinecap="round"/></svg>`;
-              const data = await getImage(el.dataset.id);
+              const data = await getImage(el.dataset.id, true);
               if (data) el.innerHTML = `<img src="${data}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">`;
               else el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:14px;height:14px;color:var(--danger);"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>`;
             }
@@ -4907,11 +4935,159 @@ ${escapeHtml(a.name)}
 
     document.getElementById("recompressBtn")?.addEventListener("click", recompressAllImages);
 
+    // ==================== 批量生成缩略图（给已有数据补缩略图） ====================
+    async function generateAllThumbnails() {
+      const ids = artworks.map(a => a.id);
+      if (!ids.length) { showToast("没有图片", "error"); return; }
+      if (!confirm(`将为 ${ids.length} 张图片生成缩略图（200px 短边），不可撤回。确定继续？`)) return;
+
+      showProgress("正在生成缩略图…", 0, ids.length);
+      let done = 0, created = 0;
+
+      for (const id of ids) {
+        try {
+          const thumbRow = await dbGetOne("images_thumb", id);
+          if (thumbRow?.data) { done++; continue; }
+
+          const row = await dbGetOne("images", id);
+          if (!row?.data) { done++; continue; }
+
+          const thumbData = await new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const ratio = Math.min(1, 200 / img.width, 200 / img.height);
+              const w = Math.max(1, Math.round(img.width * ratio));
+              const h = Math.max(1, Math.round(img.height * ratio));
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, w, h);
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve(canvas.toDataURL("image/jpeg", 0.75));
+            };
+            img.onerror = () => resolve(null);
+            img.src = row.data;
+          });
+
+          if (thumbData) {
+            await dbPut("images_thumb", { id, data: thumbData });
+            created++;
+          }
+        } catch (e) {
+          console.warn("生成缩略图失败 id=" + id, e);
+        }
+        done++;
+        showProgress("正在生成缩略图…", done, ids.length);
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      hideProgress();
+      showToast(`✅ 完成！生成 ${created} 张缩略图，跳过 ${done - created} 张`, "success");
+    }
+
+    document.getElementById("generateThumbBtn")?.addEventListener("click", generateAllThumbnails);
+
     // ==================== 导出/导入 ====================
     async function exportAllData() {
+      const fileName = `nai_gallery_backup_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
       try {
-        showToast("正在导出，请稍候…");
+        // 优先使用 File System Access API 流式写入磁盘，一次只持有一张图，避免大文件 OOM
+        if (window.showSaveFilePicker) {
+          let handle;
+          try {
+            handle = await window.showSaveFilePicker({
+              suggestedName: fileName,
+              types: [{ description: "JSON 备份", accept: { "application/json": [".json"] } }]
+            });
+          } catch (e) {
+            if (e.name === "AbortError") return; // 用户取消
+            throw e;
+          }
+          const writable = await handle.createWritable();
 
+          await writable.write('{\n');
+          await writable.write('"artworks":' + JSON.stringify(artworks) + ',\n');
+          await writable.write('"artists":' + JSON.stringify(artists) + ',\n');
+          await writable.write('"groups":' + JSON.stringify(groups) + ',\n');
+          await writable.write('"tags":' + JSON.stringify(tags) + ',\n');
+          await writable.write('"images":{');
+
+          // 先取所有 key（key 本身很轻，不会 OOM），再分批读取图片数据流式写入磁盘
+          const allKeys = await new Promise((res, rej) => {
+            const tx = db.transaction("images", "readonly");
+            const req = tx.objectStore("images").getAllKeys();
+            req.onsuccess = () => res(req.result);
+            req.onerror = () => rej(req.error);
+          });
+
+          const total = allKeys.length;
+          showProgress("正在导出图片…", 0, total);
+          const BATCH = 50;
+          let first = true, done = 0;
+          for (let i = 0; i < allKeys.length; i += BATCH) {
+            const batchKeys = allKeys.slice(i, i + BATCH);
+            const batchRows = await new Promise((res, rej) => {
+              const tx = db.transaction("images", "readonly");
+              const store = tx.objectStore("images");
+              Promise.all(batchKeys.map(k => new Promise((r, rj) => {
+                const g = store.get(k);
+                g.onsuccess = () => r(g.result);
+                g.onerror = () => rj(g.error);
+              }))).then(res, rej);
+            });
+            for (const row of batchRows) {
+              if (row?.id && row?.data) {
+                await writable.write((first ? "" : ",") + JSON.stringify(String(row.id)) + ":" + JSON.stringify(row.data));
+                first = false;
+              }
+              done++;
+            }
+            showProgress("正在导出图片…", done, total);
+            await new Promise(r => setTimeout(r, 0));
+          }
+
+          await writable.write('},\n');
+          await writable.write('"images_thumb":{');
+
+          // 导出缩略图
+          const thumbKeys = await new Promise((res, rej) => {
+            const tx = db.transaction("images_thumb", "readonly");
+            const req = tx.objectStore("images_thumb").getAllKeys();
+            req.onsuccess = () => res(req.result);
+            req.onerror = () => rej(req.error);
+          });
+
+          first = true;
+          for (let i = 0; i < thumbKeys.length; i += BATCH) {
+            const batchKeys = thumbKeys.slice(i, i + BATCH);
+            const batchRows = await new Promise((res, rej) => {
+              const tx = db.transaction("images_thumb", "readonly");
+              const store = tx.objectStore("images_thumb");
+              Promise.all(batchKeys.map(k => new Promise((r, rj) => {
+                const g = store.get(k);
+                g.onsuccess = () => r(g.result);
+                g.onerror = () => rj(g.error);
+              }))).then(res, rej);
+            });
+            for (const row of batchRows) {
+              if (row?.id && row?.data) {
+                await writable.write((first ? "" : ",") + JSON.stringify(String(row.id)) + ":" + JSON.stringify(row.data));
+                first = false;
+              }
+            }
+            await new Promise(r => setTimeout(r, 0));
+          }
+
+          await writable.write('}\n}');
+          await writable.close();
+          hideProgress();
+          showToast(`数据已导出（共 ${total} 张图片）`, "success");
+          return;
+        }
+
+        // 回退：浏览器不支持 File System Access API，内存中拼接（仅适合数据量小的情况）
+        showToast("正在导出，请稍候…");
         const parts = [];
         parts.push('{\n');
         parts.push('"artworks":' + JSON.stringify(artworks) + ',\n');
@@ -4919,7 +5095,6 @@ ${escapeHtml(a.name)}
         parts.push('"groups":' + JSON.stringify(groups) + ',\n');
         parts.push('"tags":' + JSON.stringify(tags) + ',\n');
         parts.push('"images":{');
-
         await new Promise((resolve, reject) => {
           const tx = db.transaction("images", "readonly");
           const req = tx.objectStore("images").openCursor();
@@ -4939,28 +5114,49 @@ ${escapeHtml(a.name)}
           };
           req.onerror = () => reject(req.error);
         });
-
+        parts.push('},\n');
+        parts.push('"images_thumb":{');
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction("images_thumb", "readonly");
+          const req = tx.objectStore("images_thumb").openCursor();
+          let first = true;
+          req.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+              const { id, data } = cursor.value;
+              if (id && data) {
+                parts.push((first ? "" : ",") + JSON.stringify(String(id)) + ":" + JSON.stringify(data));
+                first = false;
+              }
+              cursor.continue();
+            } else {
+              resolve();
+            }
+          };
+          req.onerror = () => reject(req.error);
+        });
         parts.push('}\n}');
-
         const blob = new Blob(parts, { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a"); a.href = url;
-        a.download = `nai_gallery_backup_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+        a.download = fileName;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showToast("数据已导出", "success");
       } catch (e) {
+        hideProgress();
         showToast("导出失败: " + e.message, "error");
       }
     }
     async function clearAllStores() {
-      const tx = db.transaction(["artworks", "artists", "groups", "tags", "images"], "readwrite");
+      const tx = db.transaction(["artworks", "artists", "groups", "tags", "images", "images_thumb"], "readwrite");
       await Promise.all([
         tx.objectStore("artworks").clear(),
         tx.objectStore("artists").clear(),
         tx.objectStore("groups").clear(),
         tx.objectStore("tags").clear(),
-        tx.objectStore("images").clear()
+        tx.objectStore("images").clear(),
+        tx.objectStore("images_thumb").clear()
       ]);
       await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
     }
@@ -5005,7 +5201,9 @@ ${escapeHtml(a.name)}
     }
     async function streamImport(file) {
       const marker = '"images":{';
+      const thumbMarker = '"images_thumb":{';
       const MARKER_LEN = marker.length;
+      const THUMB_MARKER_LEN = thumbMarker.length;
       const BATCH = 100;
 
       // 小文件直接整体解析（更快，不会内存溢出）
@@ -5020,12 +5218,18 @@ ${escapeHtml(a.name)}
         for (const ar of imported.artists) await dbPut("artists", ar);
         for (const gr of imported.groups) await dbPut("groups", gr);
         for (const tg of imported.tags) await dbPut("tags", tg);
-        const batch = [];
+        let batch = [];
         for (const [imgId, imgData] of Object.entries(imported.images)) {
           batch.push({ id: imgId, data: imgData });
           if (batch.length >= BATCH) { await dbPutBatch("images", batch); batch.length = 0; }
         }
         if (batch.length) await dbPutBatch("images", batch);
+        batch = [];
+        for (const [imgId, imgData] of Object.entries(imported.images_thumb || {})) {
+          batch.push({ id: imgId, data: imgData });
+          if (batch.length >= BATCH) { await dbPutBatch("images_thumb", batch); batch.length = 0; }
+        }
+        if (batch.length) await dbPutBatch("images_thumb", batch);
         return imported;
       }
 
@@ -5048,7 +5252,7 @@ ${escapeHtml(a.name)}
       async function flushBatch() {
         if (!batch.length) return;
         const b = batch; batch = [];
-        await dbPutBatch("images", b);
+        await dbPutBatch(currentStore, b);
         const now = Date.now();
         if (now - lastToast > 400) {
           lastToast = now;
@@ -5109,6 +5313,7 @@ ${escapeHtml(a.name)}
 
         // 阶段2：流式解析 images 段（"id1":"data1","id2":"data2",...}）
         // 注：data URL 与 id 均为纯 ASCII，字符串内不含引号/反斜杠，可安全按引号切分
+        let currentStore = "images";
         while (state !== "done") {
           let progressed = true;
           while (progressed && state !== "done") {
@@ -5120,7 +5325,19 @@ ${escapeHtml(a.name)}
               if (i >= carry.length) { carry = ""; break; }
               const ch = carry[i];
               carry = carry.slice(i + 1);
-              if (ch === "}") { state = "done"; progressed = true; }
+              if (ch === "}") {
+                // 检查是否还有 images_thumb 段
+                const thumbIdx = carry.indexOf(thumbMarker);
+                if (thumbIdx !== -1) {
+                  await flushBatch();
+                  currentStore = "images_thumb";
+                  carry = carry.slice(thumbIdx + THUMB_MARKER_LEN);
+                  state = "expectKey";
+                } else {
+                  state = "done";
+                }
+                progressed = true;
+              }
               else if (ch === '"') { curKey = ""; state = "inKey"; progressed = true; }
               else { progressed = true; }
               continue;
