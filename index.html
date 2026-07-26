@@ -2894,6 +2894,7 @@
               const img = document.createElement("img");
               img.className = "artwork-thumb lazy-loaded";
               img.dataset.id = id;
+              img.dataset.loaded = "1";
               img.src = data;
               img.alt = "";
               img.style.cssText = "opacity:0;transition:opacity 0.2s;";
