@@ -3662,26 +3662,28 @@
 
         }))
       uploadFiles.push(...newFiles);
-      // 异步解析每个 PNG 的元数据
-      newFiles.forEach(async (fi, relIdx) => {
-        if (fi.file.type === "image/png") {
-          const meta = await parseNAIMetadata(fi.file);
-          if (meta) {
-            const absIdx = uploadFiles.indexOf(fi);
-            if (absIdx !== -1) {
-              uploadFiles[absIdx].naiMeta = meta;
-              // 从 NAI 正面提示词自动提取画师名，保存到 uploadFiles 对象
-              const extracted = extractArtistFromNAIPrompt(meta);
-              if (extracted) {
-                uploadFiles[absIdx].extractedArtist = extracted;
-                showToast(`已自动提取画师：${extracted}（请确认）`);
-              }
-              renderUploadList(); // 解析完后刷新卡片显示
-            }
-          }
-        }
-      });
       renderUploadList();
+      // 串行解析 PNG 元数据：避免一次性对数十张图并发 FileReader + ImageData 造成内存峰值突飞猛进
+      (async () => {
+        for (const fi of newFiles) {
+          if (fi.file.type !== "image/png") continue;
+          if (!uploadFiles.includes(fi)) continue; // 用户已移除则跳过
+          let meta;
+          try { meta = await parseNAIMetadata(fi.file); }
+          catch (e) { meta = null; }
+          if (!meta) continue;
+          const absIdx = uploadFiles.indexOf(fi);
+          if (absIdx === -1) continue;
+          uploadFiles[absIdx].naiMeta = meta;
+          // 从 NAI 正面提示词自动提取画师名，保存到 uploadFiles 对象
+          const extracted = extractArtistFromNAIPrompt(meta);
+          if (extracted) {
+            uploadFiles[absIdx].extractedArtist = extracted;
+            showToast(`已自动提取画师：${extracted}（请确认）`);
+          }
+          renderUploadList(); // 解析完后刷新卡片显示
+        }
+      })();
     }
     // 从 NAI 正面提示词提取画师名：匹配首行的 权重::artist:名字:: 模式
     function extractArtistFromNAIPrompt(meta) {
@@ -3882,6 +3884,8 @@
             removeBtn.onclick = () => {
               const uploadId = existingCard.dataset.id;
               if (!uploadId) return;
+              const removed = uploadFiles.find(x => x.uploadId === uploadId);
+              if (removed?.preview) { URL.revokeObjectURL(removed.preview); removed.preview = null; }
               uploadFiles = uploadFiles.filter(x => x.uploadId !== uploadId);
               renderUploadList();
             };
@@ -4036,6 +4040,8 @@ ${escapeHtml(a.name)}
         removeBtn.onclick = () => {
           const uploadId = card.dataset.id;
           if (!uploadId) return;
+          const removed = uploadFiles.find(x => x.uploadId === uploadId);
+          if (removed?.preview) { URL.revokeObjectURL(removed.preview); removed.preview = null; }
           uploadFiles = uploadFiles.filter(x => x.uploadId !== uploadId);
           renderUploadList();
         };
@@ -4244,8 +4250,12 @@ ${escapeHtml(a.name)}
         };
         await dbPut("artworks", newArtwork);
         await dbPut("images", { id, data: fullData });
-        artworks.push(newArtwork); images[id] = fullData;
+        artworks.push(newArtwork);
+        _cacheSet(id, fullData); // 受 LRU 限制，避免上传大量图片时 images 常驻膨胀
         lastUploadIds.push(id);
+        // 释放本张图片的临时引用，降低上传循环中的内存峰值
+        if (fi.preview) { URL.revokeObjectURL(fi.preview); fi.preview = null; }
+        fi.file = null; fi.naiMeta = null;
       }
       uploadFiles = [];
       renderUploadList(); renderGallery(); renderAdmin(); updateStats();
@@ -6397,29 +6407,16 @@ ${escapeHtml(a.name)}
     }
     // ========================================================================
     // 解析 NAI PNG 元数据（本地，无需网络）
-    // ====== 工具：位 → 字符串/整数/字节 ======
-    function _bitsToString(bits, start, len) {
+    // ====== 工具：字节（已按 MSB 优先打包好位）→ 字符串/整数 ======
+    function _bytesToString(bytes, start, byteLen) {
       let s = "";
-      for (let i = 0; i < len; i += 8) {
-        let c = 0;
-        for (let b = 0; b < 8; b++) c = (c << 1) | bits[start + i + b];
-        s += String.fromCharCode(c);
-      }
+      for (let i = 0; i < byteLen; i++) s += String.fromCharCode(bytes[start + i]);
       return s;
     }
-    function _bitsToInt(bits, start, len) {
+    function _bytesToInt(bytes, start, byteLen) {
       let n = 0;
-      for (let i = 0; i < len; i++) n = n * 2 + bits[start + i];
+      for (let i = 0; i < byteLen; i++) n = n * 256 + bytes[start + i];
       return n;
-    }
-    function _bitsToBytes(bits, start, len) {
-      const out = new Uint8Array(Math.floor(len / 8));
-      for (let i = 0; i < out.length; i++) {
-        let c = 0;
-        for (let b = 0; b < 8; b++) c = (c << 1) | bits[start + i * 8 + b];
-        out[i] = c;
-      }
-      return out;
     }
     async function _gunzip(bytes, format = "gzip") {
       if (typeof DecompressionStream === "undefined") throw new Error("浏览器不支持解压");
@@ -6430,6 +6427,7 @@ ${escapeHtml(a.name)}
     }
 
     // ====== Alpha 通道隐写读取（核心，对标官网）======
+    // 位直接打包进 Uint8Array（每像素 1 位），避免 bits[] 巨大 JS 数组带来的内存峰值
     async function extractStealthPnginfo(file) {
       const url = URL.createObjectURL(file);
       const img = new Image();
@@ -6447,28 +6445,30 @@ ${escapeHtml(a.name)}
       const { data, width, height } = imgData;
 
       const SIG_BITS = "stealth_pnginfo".length * 8; // 120，两种签名都是15字符
-      const bits = [];
+      const byteBuf = new Uint8Array(Math.ceil((width * height) / 8)); // 上界，远小于 bits[] 数组
+      let bitCount = 0;
       let signature = null, payloadBits = null, needed = Infinity;
 
       outer:
       for (let x = 0; x < width; x++) {
         for (let y = 0; y < height; y++) {
           const idx = (y * width + x) * 4;
-          bits.push(data[idx + 3] & 1); // 读 Alpha 最低位
-          if (signature === null && bits.length === SIG_BITS) {
-            signature = _bitsToString(bits, 0, SIG_BITS);
+          if (data[idx + 3] & 1) byteBuf[bitCount >> 3] |= (0x80 >> (bitCount & 7)); // MSB 优先
+          bitCount++;
+          if (signature === null && bitCount === SIG_BITS) {
+            signature = _bytesToString(byteBuf, 0, 15);
             if (signature !== "stealth_pnginfo" && signature !== "stealth_pngcomp") return null;
           }
-          if (signature && payloadBits === null && bits.length === SIG_BITS + 32) {
-            payloadBits = _bitsToInt(bits, SIG_BITS, 32);
+          if (signature && payloadBits === null && bitCount === SIG_BITS + 32) {
+            payloadBits = _bytesToInt(byteBuf, 15, 4);
             needed = SIG_BITS + 32 + payloadBits;
           }
-          if (bits.length >= needed) break outer;
+          if (bitCount >= needed) break outer;
         }
       }
       if (payloadBits === null) return null;
 
-      const payload = _bitsToBytes(bits, SIG_BITS + 32, payloadBits);
+      const payload = byteBuf.subarray(19, 19 + Math.floor(payloadBits / 8));
       let jsonStr;
       if (signature === "stealth_pngcomp") {
         try { jsonStr = await _gunzip(payload, "gzip"); }
