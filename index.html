@@ -5155,15 +5155,16 @@ ${escapeHtml(a.name)}
     async function exportAllData() {
       const fileName = `nai_gallery_backup_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
       try {
-        // ★ 修复：统一从 IndexedDB 读取所有元数据，避免内存变量与 IndexedDB 不同步导致导出数据不全
-        const dbArtworks = await dbGetAll("artworks");
-        const dbArtists = await dbGetAll("artists");
-        const dbGroups = await dbGetAll("groups");
-        const dbTags = await dbGetAll("tags");
-        // 同步回内存变量（以防内存与 IndexedDB 不一致）
-        if (dbArtworks.length !== artworks.length) {
-          console.warn(`[导出] 检测到内存与IndexedDB不一致：内存 ${artworks.length} 条，IndexedDB ${dbArtworks.length} 条，以IndexedDB为准`);
-          artworks = dbArtworks; artists = dbArtists; groups = dbGroups; tags = dbTags;
+        // ★ 以内存为准（内存是当前会话最新状态，可能比 IndexedDB 更全）
+        // 同时检测内存与 IndexedDB 不一致并警告
+        const dbArtworksCount = await new Promise((res) => {
+          const tx = db.transaction("artworks", "readonly");
+          const req = tx.objectStore("artworks").count();
+          req.onsuccess = () => res(req.result);
+          req.onerror = () => res(-1);
+        });
+        if (dbArtworksCount >= 0 && dbArtworksCount !== artworks.length) {
+          console.warn(`[导出警告] 内存 ${artworks.length} 条，IndexedDB ${dbArtworksCount} 条，以内存为准导出`);
         }
         // 优先使用 File System Access API 流式写入磁盘，一次只持有一张图，避免大文件 OOM
         if (window.showSaveFilePicker) {
@@ -5180,10 +5181,10 @@ ${escapeHtml(a.name)}
           const writable = await handle.createWritable();
 
           await writable.write('{\n');
-          await writable.write('"artworks":' + JSON.stringify(dbArtworks) + ',\n');
-          await writable.write('"artists":' + JSON.stringify(dbArtists) + ',\n');
-          await writable.write('"groups":' + JSON.stringify(dbGroups) + ',\n');
-          await writable.write('"tags":' + JSON.stringify(dbTags) + ',\n');
+          await writable.write('"artworks":' + JSON.stringify(artworks) + ',\n');
+          await writable.write('"artists":' + JSON.stringify(artists) + ',\n');
+          await writable.write('"groups":' + JSON.stringify(groups) + ',\n');
+          await writable.write('"tags":' + JSON.stringify(tags) + ',\n');
           await writable.write('"images":{');
 
           // 先取所有 key（key 本身很轻，不会 OOM），再分批读取图片数据流式写入磁盘
@@ -5223,7 +5224,7 @@ ${escapeHtml(a.name)}
           await writable.write('}\n}');
           await writable.close();
           hideProgress();
-          showToast(`数据已导出（共 ${total} 张图片）`, "success");
+          showToast(`已导出：画作 ${artworks.length} | 画师 ${artists.length} | 组合 ${groups.length} | 图片 ${total}`, "success");
           return;
         }
 
@@ -5231,10 +5232,10 @@ ${escapeHtml(a.name)}
         showToast("正在导出，请稍候…");
         const parts = [];
         parts.push('{\n');
-        parts.push('"artworks":' + JSON.stringify(dbArtworks) + ',\n');
-        parts.push('"artists":' + JSON.stringify(dbArtists) + ',\n');
-        parts.push('"groups":' + JSON.stringify(dbGroups) + ',\n');
-        parts.push('"tags":' + JSON.stringify(dbTags) + ',\n');
+        parts.push('"artworks":' + JSON.stringify(artworks) + ',\n');
+        parts.push('"artists":' + JSON.stringify(artists) + ',\n');
+        parts.push('"groups":' + JSON.stringify(groups) + ',\n');
+        parts.push('"tags":' + JSON.stringify(tags) + ',\n');
         parts.push('"images":{');
         await new Promise((resolve, reject) => {
           const tx = db.transaction("images", "readonly");
@@ -5621,6 +5622,22 @@ ${escapeHtml(a.name)}
             await dbPut("artworks", fixedAw);
             newAwCount++;
           }
+        }
+        // ★ 关键修复：去重导入完成后，全量同步内存到 IndexedDB
+        // 解决"已存在的 artworks 不 dbPut"导致 IndexedDB 数据不全的问题
+        // 同时确保之前因任何原因缺失的 IndexedDB 数据被补全
+        const syncBatch = 200;
+        for (let i = 0; i < artworks.length; i += syncBatch) {
+          await dbPutBatch("artworks", artworks.slice(i, i + syncBatch));
+        }
+        for (let i = 0; i < artists.length; i += syncBatch) {
+          await dbPutBatch("artists", artists.slice(i, i + syncBatch));
+        }
+        for (let i = 0; i < groups.length; i += syncBatch) {
+          await dbPutBatch("groups", groups.slice(i, i + syncBatch));
+        }
+        for (let i = 0; i < tags.length; i += syncBatch) {
+          await dbPutBatch("tags", tags.slice(i, i + syncBatch));
         }
         updateStats();
         renderTagFilter();
