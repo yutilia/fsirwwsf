@@ -109,64 +109,64 @@
       --success: #3a8d6e;
     }
 
-    body.theme-dark-green {
-      --bg: #0d1a14;
-      --surface: #142420;
-      --surface2: #1c2e28;
-      --surface3: #28403a;
-      --border: #33554a;
-      --accent: #4ac38a;
-      --accent2: #6ab5a5;
-      --text: #d4e8dc;
-      --text2: #9bb5a8;
-      --text3: #6a8a80;
-      --danger: #e06868;
-      --success: #4ac38a;
+    body.theme-blue-pink-sea {
+      --bg: #e5eef5;
+      --surface: #ffe6b3;
+      --surface2: #e9c4a6;
+      --surface3: #d4e8f2;
+      --border: #ffffff;
+      --accent: #e2a488;
+      --accent2: #bdd9ea;
+      --text: #8c705c;
+      --text2: #a88c78;
+      --text3: #e2a488;
+      --danger: #e2a488;
+      --success: #94b9d3;
     }
 
     body.theme-dark-blue {
-      --bg: #0a1426;
-      --surface: #111e36;
-      --surface2: #182a48;
-      --surface3: #243a5c;
-      --border: #2e4870;
-      --accent: #4a8fd6;
-      --accent2: #6ab5e0;
-      --text: #d4e0f0;
-      --text2: #95a8c5;
-      --text3: #6a7d9a;
-      --danger: #e06868;
-      --success: #4ad6a5;
+      --bg: #f7f2f9;
+      --surface: #fce4ef;
+      --surface2: #dcc8f0;
+      --surface3: #d6f2fb;
+      --border: #ffffff;
+      --accent: #4c3b70;
+      --accent2: #b8a6e3;
+      --text: #5a4b80;
+      --text2: #8273a6;
+      --text3: #ba5abf;
+      --danger: #b48ed1;
+      --success: #98d8ec;
     }
 
     body.theme-rose {
-      --bg: #2a1418;
-      --surface: #361c22;
-      --surface2: #44262e;
-      --surface3: #54333c;
-      --border: #6a4250;
-      --accent: #d65a7a;
-      --accent2: #b06f8a;
-      --text: #f0d4dc;
-      --text2: #c09aa5;
-      --text3: #8a6a75;
-      --danger: #e06868;
-      --success: #6ad6a5;
+      --bg: #dcf3fc;
+      --surface: #6e4e48;
+      --surface2: #58c1eb;
+      --surface3: #1e4299;
+      --border: #ffffff;
+      --accent: #1e4299;
+      --accent2: #58c1eb;
+      --text: #583c37;
+      --text2: #204861;
+      --text3: #6d6060;
+      --danger: #8c6660;
+      --success: #58c1eb;
     }
 
     body.theme-mint {
-      --bg: #0a1f1c;
-      --surface: #102a26;
-      --surface2: #163832;
-      --surface3: #204640;
-      --border: #2a5a52;
-      --accent: #4ad6c3;
-      --accent2: #6ab5b0;
-      --text: #d4f0ea;
-      --text2: #9ab5ad;
-      --text3: #6a8a82;
-      --danger: #e06868;
-      --success: #4ad6a5;
+      --bg: #ececdc;
+      --surface: #f5bcbd;
+      --surface2: #dcf2f9;
+      --surface3: #fff0c4;
+      --border: #ffffff;
+      --accent: #f2b4bc;
+      --accent2: #c3d8e6;
+      --text: #785a5e;
+      --text2: #888888;
+      --text3: hsl(60, 21%, 59%);
+      --danger: #f2b4bc;
+      --success: #97c0d8;
     }
 
     body {
@@ -426,6 +426,72 @@
       border-color: var(--accent);
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    /* 画廊多选模式 */
+    .artwork-card.selected {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 2px var(--danger), 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .select-checkbox {
+      display: none;
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 14px;
+      z-index: 5;
+      backdrop-filter: blur(2px);
+    }
+
+    .artwork-card {
+      position: relative;
+    }
+
+    body.select-mode .select-checkbox {
+      display: flex;
+    }
+
+    body.select-mode .artwork-card {
+      cursor: default;
+    }
+
+    body.select-mode .artwork-card.selected .select-checkbox {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .gallery-select-bar {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      position: sticky;
+      top: 52px;
+      z-index: 20;
+    }
+
+    body.select-mode .gallery-select-bar {
+      display: flex;
+    }
+
+    .gallery-select-bar .sel-count {
+      font-size: 13px;
+      color: var(--text2);
+      margin-right: auto;
     }
 
     .artwork-thumb {
@@ -1841,6 +1907,7 @@
             生成测试</button>
 
           <h2>画廊总览</h2>
+          <button class="btn btn-ghost btn-sm" id="gallerySelectToggle" title="多选删除">☑ 多选</button>
           <!-- 单双列切换按钮 -->
           <button class="btn btn-ghost btn-sm" id="galleryLayoutBtn" title="切换单/双列">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
@@ -1893,6 +1960,13 @@
             <button class="filter-tag" id="countMoreBtn">5件+</button>
           </div>
           <div class="gallery-stats" id="galleryStats"></div>
+          <div class="gallery-select-bar" id="gallerySelectBar">
+            <span class="sel-count" id="gallerySelCount">已选 0 项</span>
+            <button class="btn btn-ghost btn-sm" id="gallerySelAllPage">全选本页</button>
+            <button class="btn btn-ghost btn-sm" id="gallerySelClear">清空选择</button>
+            <button class="btn btn-danger btn-sm" id="gallerySelDelete">🗑 删除选中</button>
+            <button class="btn btn-ghost btn-sm" id="gallerySelExit">退出多选</button>
+          </div>
           <div class="filter-bar" id="tagFilterBar"></div>
           <div class="gallery-grid" id="galleryGrid"></div>
           <div id="galleryPagination"
@@ -2359,7 +2433,7 @@
     let artworks = [], artists = [], groups = [], tags = [], images = {};
 
     // ==================== 图片按需加载 + LRU 缓存 + 并发控制 ====================
-    const MAX_IMG_CACHE = 50;
+    const MAX_IMG_CACHE = 30;
     const MAX_CONCURRENT_LOADS = 3;
     const imgCache = new Map();
     const loadQueue = [];
@@ -2483,6 +2557,8 @@
     let galleryShowDiscarded = false; // 兼容旧代码
     let galleryDiscardedMode = "hide"; // hide / show / only
     let galleryCountFilter = "all"; // all / 1 / 2-5 / more
+    let gallerySelectMode = false; // 画廊多选模式
+    let gallerySelectedIds = new Set(); // 画廊多选已选中的作品ID
     let artistSearchQuery = "";
     let artistSortMode = "default";
     let artistFilterMode = "all"; // all/active/discarded
@@ -2839,6 +2915,7 @@
       pageItems.forEach(aw => {
         const card = document.createElement("div");
         card.className = "artwork-card";
+        if (gallerySelectMode && gallerySelectedIds.has(aw.id)) card.classList.add("selected");
         const tagEls = (aw.tags || []).slice(0, 3).map(tid => {
           const t = tags.find(x => x.id === tid);
           return t ? `<span class="tag-pill">${escapeHtml(t.name)}</span>` : "";
@@ -2848,6 +2925,7 @@
         const r = isGroup ? { up: 0, down: 0 } : getArtistRating(aw.artistId);
         // 缩略图先放占位符，进视口后懒加载
         card.innerHTML = `
+            <div class="select-checkbox">${gallerySelectedIds.has(aw.id) ? "✓" : ""}</div>
             <div class="artwork-thumb-placeholder lazy-thumb" data-id="${aw.id}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:24px;height:24px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             </div>
@@ -2932,6 +3010,20 @@
         card.addEventListener("click", async (e) => {
           if (e.target.closest("button")) return; // 点击按钮不触发
           const awId = card.dataset.awId;
+          // 多选模式：点击切换选中状态
+          if (gallerySelectMode) {
+            if (gallerySelectedIds.has(awId)) {
+              gallerySelectedIds.delete(awId);
+              card.classList.remove("selected");
+              card.querySelector(".select-checkbox").textContent = "";
+            } else {
+              gallerySelectedIds.add(awId);
+              card.classList.add("selected");
+              card.querySelector(".select-checkbox").textContent = "✓";
+            }
+            updateGallerySelCount();
+            return;
+          }
           const aw = artworks.find(a => a.id === awId);
           if (aw) openLightbox(await getImage(aw.id), aw.title, getArtistName(aw.artistId), aw.source, aw.nai);
         });
@@ -3837,8 +3929,14 @@
       // 计算 header 区域（只在首次渲染时生成）
       let header = list.querySelector(".upload-list-header");
       if (!header) {
-        list.innerHTML = `<div class="upload-list-header" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        list.innerHTML = `<div class="upload-list-header" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
             <span id="uploadCountLabel">待上传 ${uploadFiles.length} 件</span>
+            <div id="uploadProgressArea" style="display:none;flex:1;min-width:200px;margin:0 12px;">
+              <div style="font-size:12px;color:var(--accent2);margin-bottom:4px;" id="uploadProgressText"></div>
+              <div style="height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;">
+                <div id="uploadProgressBar" style="height:100%;width:0%;background:var(--accent);transition:width 0.2s;"></div>
+              </div>
+            </div>
             <button class="btn btn-primary" id="uploadAllBtn">全部上传</button>
         </div><div class="upload-grid${uploadLargeMode ? ' large-mode' : ''}" id="uploadGrid"></div>`;
       } else {
@@ -3940,9 +4038,16 @@
             </details>`;
         }
 
+        const previewSrc = fi.preview || "";
+        const failedBadge = fi._uploaded === false ? `<div style="position:absolute;top:8px;left:8px;background:var(--danger);color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;">上传失败</div>` : "";
+
         card.innerHTML = `
             <button class="upload-card-remove" data-idx="${idx}" title="移除">✕</button>
-            <img class="upload-card-thumb" src="${fi.preview}" alt="">
+            <div style="position:relative;">
+              ${failedBadge}
+              <img class="upload-card-thumb" src="${previewSrc}" alt="" ${previewSrc ? "" : 'style="display:none;"'}>
+              ${previewSrc ? "" : '<div class="upload-card-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--text3);">📄</div>'}
+            </div>
             <div class="upload-card-body">
                 <div class="form-group">
                     <label class="form-label">作品名称</label>
@@ -4162,16 +4267,57 @@ ${escapeHtml(a.name)}
     }
 
     // 压缩图片为 JPEG（保留 NAI 元数据在 artwork 对象里，不依赖图片文件）
-    // 返回 { full: dataUrl }
+    // 返回 { full: dataUrl } 或抛出错误（文件不可读/已删除/超时）
     async function compressImage(file, maxW = 1200, maxH = 1600, quality = 0.82) {
+      const TIMEOUT_MS = 10000; // 单张图最多 10 秒，防止文件被删后卡死
+
+      // 带超时的 createImageBitmap
+      const createBitmapWithTimeout = () => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("图片读取超时（文件可能已被删除）")), TIMEOUT_MS);
+        createImageBitmap(file).then(
+          bmp => { clearTimeout(timer); resolve(bmp); },
+          err => { clearTimeout(timer); reject(err); }
+        );
+      });
+
+      let bitmap;
       try {
-        const bitmap = await createImageBitmap(file);
+        bitmap = await createBitmapWithTimeout();
+      } catch (e) {
+        // createImageBitmap 失败（文件被删/损坏），走 FileReader + Image 兜底
+        try {
+          bitmap = await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error("图片读取超时（文件可能已被删除）")), TIMEOUT_MS);
+            const fr = new FileReader();
+            fr.onload = () => {
+              const img = new Image();
+              img.onload = async () => {
+                try {
+                  const bmp = await createImageBitmap(img);
+                  clearTimeout(timer);
+                  resolve(bmp);
+                } catch (_) {
+                  clearTimeout(timer);
+                  reject(new Error("图片无法解码"));
+                }
+              };
+              img.onerror = () => { clearTimeout(timer); reject(new Error("图片无法解码")); };
+              img.src = fr.result;
+            };
+            fr.onerror = () => { clearTimeout(timer); reject(new Error("文件读取失败（可能已被删除）")); };
+            fr.readAsDataURL(file);
+          });
+        } catch (e2) {
+          throw new Error("图片无法读取：" + (e2.message || "文件可能已被删除"));
+        }
+      }
+
+      try {
         let { width, height } = bitmap;
         const ratio = Math.min(1, maxW / width, maxH / height);
         const w = Math.max(1, Math.round(width * ratio));
         const h = Math.max(1, Math.round(height * ratio));
 
-        // 生成原图
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext("2d");
@@ -4183,32 +4329,52 @@ ${escapeHtml(a.name)}
         bitmap.close();
         return { full: fullData };
       } catch (e) {
-        // 任何异常都退回原始文件，绝不存黑图
-        const dataUrl = await new Promise(res => {
-          const fr = new FileReader();
-          fr.onload = ev => res(ev.target.result);
-          fr.readAsDataURL(file);
-        });
-        return { full: dataUrl };
+        bitmap.close();
+        throw e;
       }
     }
 
     async function uploadAll() {
       if (uploadFiles.length === 0) return;
       lastUploadIds = [];
+
+      // 显示进度条
+      const progressArea = document.getElementById("uploadProgressArea");
+      const progressText = document.getElementById("uploadProgressText");
+      const progressBar = document.getElementById("uploadProgressBar");
+      const uploadBtn = document.getElementById("uploadAllBtn");
+      if (progressArea) progressArea.style.display = "flex";
+      if (uploadBtn) uploadBtn.disabled = true;
+
+      const total = uploadFiles.length;
+      let completed = 0, failedCount = 0, failedNames = [];
+
+      const updateProgress = (text, pct) => {
+        if (progressText) progressText.textContent = text;
+        if (progressBar) progressBar.style.width = pct + "%";
+      };
+
+      const finishOne = () => {
+        completed++;
+        if (completed < total) {
+          updateProgress(`正在上传 ${completed + 1}/${total}`, Math.round((completed / total) * 100));
+        } else {
+          updateProgress(`上传完成`, 100);
+        }
+      };
+
       // 在上传前处理未绑定的画师名：规范化名字并尝试创建/绑定
       for (let i = 0; i < uploadFiles.length; i++) {
         const fi = uploadFiles[i];
-        if (fi.artistId) continue; // 已绑定则跳过
+        if (fi.artistId) continue;
         const nameInput = document.querySelector(`.upload-card[data-id="${fi.uploadId}"] .upload-artist-name`);
         const rawName = (nameInput?.value || "").trim();
         if (!rawName) continue;
-        const cleanName = sanitizeArtistName(rawName); // 空格转下划线
+        const cleanName = sanitizeArtistName(rawName);
         const existing = artists.find(a => a.name === cleanName);
         if (existing) {
           fi.artistId = existing.id;
         } else {
-          // 自动新建画师（用户输入了名字但没点创建）
           const newArtist = {
             id: "a_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
             name: cleanName, alias: "", link: "",
@@ -4219,48 +4385,89 @@ ${escapeHtml(a.name)}
           fi.artistId = newArtist.id;
         }
       }
+
       let totalOriginal = 0, totalCompressed = 0;
-      for (const fi of uploadFiles) {
+      const remainingFiles = [...uploadFiles]; // 拷贝一份，失败的不移除
+      for (let idx = 0; idx < remainingFiles.length; idx++) {
+        const fi = remainingFiles[idx];
+        if (!fi) continue;
         const id = uid();
-        // 压缩图片（JPEG 存储，大幅减小体积）
-        const { full: fullData } = await compressImage(fi.file);
-        // 原始文件大小估算（用于提示）
-        totalOriginal += fi.file.size;
-        totalCompressed += Math.round(fullData.length * 0.75); // base64 转字节估算
-        // 提取并保存 NAI 元数据到 artwork（不依赖图片文件）
-        let naiData = null;
-        if (fi.naiMeta) {
-          const p = fi.naiMeta;
-          const parsed = p._parsed || {};
-          naiData = {
-            prompt: p['Description'] || parsed.prompt || "",
-            negative: parsed.uc || parsed.negative_prompt || "",
-            seed: parsed.seed ?? "",
-            steps: parsed.steps ?? "",
-            sampler: parsed.sampler || "",
-            cfg: parsed.scale ?? parsed.cfg_scale ?? "",
-            model: parsed.model || parsed.Source || "",
+
+        // 每处理完一张，让出主线程，避免长时间卡顿
+        if (idx > 0) await new Promise(r => setTimeout(r, 16));
+
+        try {
+          updateProgress(`正在上传 ${idx + 1}/${total}：${fi.title || fi.file?.name || "未命名"}`, Math.round((idx / total) * 100));
+
+          const { full: fullData } = await compressImage(fi.file);
+          totalOriginal += fi.file?.size || 0;
+          totalCompressed += Math.round(fullData.length * 0.75);
+
+          let naiData = null;
+          if (fi.naiMeta) {
+            const p = fi.naiMeta;
+            const parsed = p._parsed || {};
+            naiData = {
+              prompt: p['Description'] || parsed.prompt || "",
+              negative: parsed.uc || parsed.negative_prompt || "",
+              seed: parsed.seed ?? "",
+              steps: parsed.steps ?? "",
+              sampler: parsed.sampler || "",
+              cfg: parsed.scale ?? parsed.cfg_scale ?? "",
+              model: parsed.model || parsed.Source || "",
+            };
+          }
+          const newArtwork = {
+            id, title: fi.title, artistId: fi.artistId,
+            tags: fi.tags || [], source: fi.source,
+            note: fi.note || "", createdAt: Date.now(),
+            ...(naiData ? { nai: naiData } : {})
           };
+          await dbPut("artworks", newArtwork);
+          await dbPut("images", { id, data: fullData });
+          artworks.push(newArtwork);
+          _cacheSet(id, fullData);
+          lastUploadIds.push(id);
+
+          // 释放本张图片的临时引用
+          if (fi.preview) { URL.revokeObjectURL(fi.preview); fi.preview = null; }
+          fi.file = null; fi.naiMeta = null; fi._uploaded = true;
+          finishOne();
+        } catch (err) {
+          failedCount++;
+          const name = fi.title || fi.file?.name || "未命名";
+          failedNames.push(name);
+          console.warn("上传失败:", name, err.message);
+          // 释放失败文件的 preview（节省内存），保留 fi.file 供显示文件名
+          if (fi.preview) { URL.revokeObjectURL(fi.preview); fi.preview = null; }
+          fi._uploaded = false;
+          finishOne();
         }
-        const newArtwork = {
-          id, title: fi.title, artistId: fi.artistId,
-          tags: fi.tags || [], source: fi.source,
-          note: fi.note || "", createdAt: Date.now(),
-          ...(naiData ? { nai: naiData } : {})
-        };
-        await dbPut("artworks", newArtwork);
-        await dbPut("images", { id, data: fullData });
-        artworks.push(newArtwork);
-        _cacheSet(id, fullData); // 受 LRU 限制，避免上传大量图片时 images 常驻膨胀
-        lastUploadIds.push(id);
-        // 释放本张图片的临时引用，降低上传循环中的内存峰值
-        if (fi.preview) { URL.revokeObjectURL(fi.preview); fi.preview = null; }
-        fi.file = null; fi.naiMeta = null;
       }
-      uploadFiles = [];
+
+      // 只保留未成功的文件（失败的仍留在列表，供用户查看/重试）
+      uploadFiles = uploadFiles.filter(f => f._uploaded === false);
+
       renderUploadList(); renderGallery(); renderAdmin(); updateStats();
-      const savedMB = ((totalOriginal - totalCompressed) / 1024 / 1024).toFixed(1);
-      showToast(`上传成功，共 ${lastUploadIds.length} 件，节省约 ${savedMB}MB（可在管理页撤回）`, "success");
+
+      // 隐藏进度条
+      updateProgress("", 100);
+      if (progressBar) progressBar.style.width = "100%";
+
+      setTimeout(() => {
+        if (progressArea) progressArea.style.display = "none";
+        if (uploadBtn) uploadBtn.disabled = false;
+      }, 800);
+
+      if (lastUploadIds.length > 0) {
+        const savedMB = ((totalOriginal - totalCompressed) / 1024 / 1024).toFixed(1);
+        let msg = `上传成功 ${lastUploadIds.length} 件`;
+        if (savedMB > 0) msg += `，节省约 ${savedMB}MB`;
+        if (failedCount > 0) msg += `，${failedCount} 件失败（${failedNames.slice(0, 3).join("、")}${failedCount > 3 ? "等" : ""}）`;
+        showToast(msg, failedCount > 0 ? "error" : "success");
+      } else if (failedCount > 0) {
+        showToast(`全部上传失败（${failedNames.slice(0, 3).join("、")}${failedCount > 3 ? "等" : ""}），文件可能已被删除`, "error");
+      }
     }
 
     document.getElementById("uploadZone")?.addEventListener("click", () => document.getElementById("fileInput").click());
@@ -5101,7 +5308,8 @@ ${escapeHtml(a.name)}
         showToast("导入失败: " + e.message, "error");
       }
     }
-    async function streamImport(file) {
+    async function streamImport(file, opts = {}) {
+      const { clear = true, writeMeta = true } = opts;
       const marker = '"images":{';
       const MARKER_LEN = marker.length;
       const BATCH = 100;
@@ -5113,11 +5321,14 @@ ${escapeHtml(a.name)}
         if (!imported.artworks || !imported.artists || !imported.groups || !imported.tags || !imported.images) {
           throw new Error("文件格式不正确，缺少必要字段");
         }
-        await clearAllStores();
-        for (const aw of imported.artworks) await dbPut("artworks", aw);
-        for (const ar of imported.artists) await dbPut("artists", ar);
-        for (const gr of imported.groups) await dbPut("groups", gr);
-        for (const tg of imported.tags) await dbPut("tags", tg);
+        if (clear) await clearAllStores();
+        if (writeMeta) {
+          for (const aw of imported.artworks) await dbPut("artworks", aw);
+          for (const ar of imported.artists) await dbPut("artists", ar);
+          for (const gr of imported.groups) await dbPut("groups", gr);
+          for (const tg of imported.tags) await dbPut("tags", tg);
+        }
+        // 图片始终写入（按 id 幂等，去重式导入也需要为新画作补图）
         let batch = [];
         for (const [imgId, imgData] of Object.entries(imported.images)) {
           batch.push({ id: imgId, data: imgData });
@@ -5128,7 +5339,7 @@ ${escapeHtml(a.name)}
       }
 
       // 大文件：流式解析。先读取元数据（artworks/artists/groups/tags），再增量解析 images 段
-      await clearAllStores();
+      if (clear) await clearAllStores();
       const reader = file.stream().getReader();
       const decoder = new TextDecoder("utf-8");
 
@@ -5174,10 +5385,12 @@ ${escapeHtml(a.name)}
               throw new Error("文件格式不正确，缺少必要字段");
             }
             parsedMeta.images = {};
-            for (const aw of parsedMeta.artworks) await dbPut("artworks", aw);
-            for (const ar of parsedMeta.artists) await dbPut("artists", ar);
-            for (const gr of parsedMeta.groups) await dbPut("groups", gr);
-            for (const tg of parsedMeta.tags) await dbPut("tags", tg);
+            if (writeMeta) {
+              for (const aw of parsedMeta.artworks) await dbPut("artworks", aw);
+              for (const ar of parsedMeta.artists) await dbPut("artists", ar);
+              for (const gr of parsedMeta.groups) await dbPut("groups", gr);
+              for (const tg of parsedMeta.tags) await dbPut("tags", tg);
+            }
             showToast(`元数据已读取（画师 ${parsedMeta.artists.length}，作品 ${parsedMeta.artworks.length}），开始导入图片…`);
             carry = textBuf.slice(idx + MARKER_LEN);
             break;
@@ -5193,10 +5406,12 @@ ${escapeHtml(a.name)}
           if (!imported.artworks || !imported.artists || !imported.groups || !imported.tags || !imported.images) {
             throw new Error("文件格式不正确，缺少必要字段");
           }
-          for (const aw of imported.artworks) await dbPut("artworks", aw);
-          for (const ar of imported.artists) await dbPut("artists", ar);
-          for (const gr of imported.groups) await dbPut("groups", gr);
-          for (const tg of imported.tags) await dbPut("tags", tg);
+          if (writeMeta) {
+            for (const aw of imported.artworks) await dbPut("artworks", aw);
+            for (const ar of imported.artists) await dbPut("artists", ar);
+            for (const gr of imported.groups) await dbPut("groups", gr);
+            for (const tg of imported.tags) await dbPut("tags", tg);
+          }
           for (const [imgId, imgData] of Object.entries(imported.images)) {
             batch.push({ id: imgId, data: imgData });
             if (batch.length >= BATCH) await flushBatch();
@@ -5313,7 +5528,8 @@ ${escapeHtml(a.name)}
       if (!confirm(`即将去重式导入：${f.name}\n新数据会合并到现有数据中：\n- 同名画师：保留原有评分/废弃状态，除非新数据中评分或废弃状态发生变化则按新数据更新\n- 新画师：自动追加\n确定继续吗？`)) return;
       showToast("正在读取并合并数据…");
       try {
-        const result = await streamImport(f);
+        // 去重式导入：不清空数据库、不直接写入元数据（由下方合并逻辑按 name/id 去重后写入）
+        const result = await streamImport(f, { clear: false, writeMeta: false });
         // 合并 artists：按 name 去重；若新数据评分/废弃状态变化则按新数据更新
         const existingByName = new Map(artists.map(a => [a.name, a]));
         let newArtistCount = 0, updatedArtistCount = 0;
@@ -5788,10 +6004,67 @@ ${escapeHtml(a.name)}
         const targetPage = document.getElementById(page + "Page");
         if (targetPage) { targetPage.style.display = "flex"; targetPage.classList.add("active"); }
         if (page === "albums") { /* 已移除 */ }
+        // 切换页面时清理图片缓存，释放内存
+        clearImageCache();
       });
     });
     document.getElementById("gallerySearch").addEventListener("input", () => { galleryPage = 1; renderGallery(); });
     document.getElementById("galleryPageSizeSelect")?.addEventListener("change", (e) => { galleryPageSize = parseInt(e.target.value); galleryPage = 1; renderGallery(); });
+
+    // ==================== 画廊多选删除 ====================
+    function updateGallerySelCount() {
+      const el = document.getElementById("gallerySelCount");
+      if (el) el.textContent = `已选 ${gallerySelectedIds.size} 项`;
+    }
+    function toggleGallerySelectMode(on) {
+      gallerySelectMode = on;
+      gallerySelectedIds = on ? gallerySelectedIds : new Set();
+      document.body.classList.toggle("select-mode", on);
+      const btn = document.getElementById("gallerySelectToggle");
+      if (btn) {
+        btn.textContent = on ? "✕ 退出多选" : "☑ 多选";
+        btn.classList.toggle("btn-primary", on);
+      }
+      updateGallerySelCount();
+      renderGallery();
+    }
+    document.getElementById("gallerySelectToggle")?.addEventListener("click", () => toggleGallerySelectMode(!gallerySelectMode));
+    document.getElementById("gallerySelExit")?.addEventListener("click", () => toggleGallerySelectMode(false));
+    document.getElementById("gallerySelClear")?.addEventListener("click", () => {
+      gallerySelectedIds.clear();
+      updateGallerySelCount();
+      renderGallery();
+    });
+    document.getElementById("gallerySelAllPage")?.addEventListener("click", () => {
+      const search = document.getElementById("gallerySearch").value.toLowerCase();
+      const groupIds = new Set(groups.map(g => g.id));
+      let filtered = artworks.filter(a => {
+        const matchSearch = !search || normForSearch(a.title).includes(normForSearch(search)) || normForSearch(getArtistName(a.artistId)).includes(normForSearch(search));
+        return matchSearch;
+      });
+      const totalPages = Math.max(1, Math.ceil(filtered.length / galleryPageSize));
+      if (galleryPage > totalPages) galleryPage = totalPages;
+      const pageItems = filtered.slice((galleryPage - 1) * galleryPageSize, galleryPage * galleryPageSize);
+      pageItems.forEach(aw => gallerySelectedIds.add(aw.id));
+      updateGallerySelCount();
+      renderGallery();
+    });
+    document.getElementById("gallerySelDelete")?.addEventListener("click", async () => {
+      if (gallerySelectedIds.size === 0) { showToast("未选择任何画作", "error"); return; }
+      if (!confirm(`确定删除选中的 ${gallerySelectedIds.size} 件画作？此操作不可撤销。`)) return;
+      const ids = [...gallerySelectedIds];
+      for (const id of ids) {
+        const idx = artworks.findIndex(a => a.id === id);
+        if (idx >= 0) artworks.splice(idx, 1);
+        await dbDelete("artworks", id);
+        await dbDelete("images", id);
+      }
+      gallerySelectedIds.clear();
+      updateStats();
+      renderGallery();
+      renderAdmin();
+      showToast(`已删除 ${ids.length} 件画作`, "success");
+    });
 
     // ==================== 元数据清除工具 ====================
     let cleanerItems = []; // { file, name, status, cleanBlob, hasMetadata, metaKeys }
@@ -6159,7 +6432,7 @@ ${escapeHtml(a.name)}
           await dbPut("artworks", newArtwork);
           await dbPut("images", { id: artworkId, data: dataUrl });
           artworks.push(newArtwork);
-          images[artworkId] = dataUrl;
+          _cacheSet(artworkId, dataUrl);
           importedCount++;
         }
 
@@ -6241,11 +6514,11 @@ ${escapeHtml(a.name)}
     }
     initData();
     // ==================== 主题切换 ====================
-    const THEMES = ["", "theme-light", "theme-pink", "theme-green", "theme-blue", "theme-purple", "theme-dark-green", "theme-dark-blue", "theme-rose", "theme-mint"];
-    const THEME_NAMES = { "": "暗夜", "theme-light": "米色日间", "theme-pink": "少女粉", "theme-green": "森林绿", "theme-blue": "天空蓝", "theme-purple": "梦幻紫", "theme-dark-green": "深林夜", "theme-dark-blue": "深海蓝", "theme-rose": "玫瑰暗", "theme-mint": "薄荷夜" };
+    const THEMES = ["", "theme-light", "theme-pink", "theme-green", "theme-blue", "theme-purple", "theme-blue-pink-sea", "theme-dark-blue", "theme-rose", "theme-mint"];
+    const THEME_NAMES = { "": "暗夜", "theme-light": "米色日间", "theme-pink": "少女粉", "theme-green": "森林绿", "theme-blue": "天空蓝", "theme-purple": "梦幻紫", "theme-blue-pink-sea": "蓝调粉海", "theme-dark-blue": "深海蓝", "theme-rose": "玫瑰暗", "theme-mint": "薄荷夜" };
     let themeIdx = Math.max(0, THEMES.indexOf(localStorage.getItem("naiTheme") || ""));
     function applyTheme() {
-      document.body.classList.remove("theme-light", "theme-pink", "theme-green", "theme-blue", "theme-purple", "theme-dark-green", "theme-dark-blue", "theme-rose", "theme-mint");
+      document.body.classList.remove("theme-light", "theme-pink", "theme-green", "theme-blue", "theme-purple", "theme-blue-pink-sea", "theme-dark-blue", "theme-rose", "theme-mint");
       const t = THEMES[themeIdx];
       if (t) document.body.classList.add(t);
       localStorage.setItem("naiTheme", t);
