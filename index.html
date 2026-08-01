@@ -5155,6 +5155,16 @@ ${escapeHtml(a.name)}
     async function exportAllData() {
       const fileName = `nai_gallery_backup_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
       try {
+        // ★ 修复：统一从 IndexedDB 读取所有元数据，避免内存变量与 IndexedDB 不同步导致导出数据不全
+        const dbArtworks = await dbGetAll("artworks");
+        const dbArtists = await dbGetAll("artists");
+        const dbGroups = await dbGetAll("groups");
+        const dbTags = await dbGetAll("tags");
+        // 同步回内存变量（以防内存与 IndexedDB 不一致）
+        if (dbArtworks.length !== artworks.length) {
+          console.warn(`[导出] 检测到内存与IndexedDB不一致：内存 ${artworks.length} 条，IndexedDB ${dbArtworks.length} 条，以IndexedDB为准`);
+          artworks = dbArtworks; artists = dbArtists; groups = dbGroups; tags = dbTags;
+        }
         // 优先使用 File System Access API 流式写入磁盘，一次只持有一张图，避免大文件 OOM
         if (window.showSaveFilePicker) {
           let handle;
@@ -5170,10 +5180,10 @@ ${escapeHtml(a.name)}
           const writable = await handle.createWritable();
 
           await writable.write('{\n');
-          await writable.write('"artworks":' + JSON.stringify(artworks) + ',\n');
-          await writable.write('"artists":' + JSON.stringify(artists) + ',\n');
-          await writable.write('"groups":' + JSON.stringify(groups) + ',\n');
-          await writable.write('"tags":' + JSON.stringify(tags) + ',\n');
+          await writable.write('"artworks":' + JSON.stringify(dbArtworks) + ',\n');
+          await writable.write('"artists":' + JSON.stringify(dbArtists) + ',\n');
+          await writable.write('"groups":' + JSON.stringify(dbGroups) + ',\n');
+          await writable.write('"tags":' + JSON.stringify(dbTags) + ',\n');
           await writable.write('"images":{');
 
           // 先取所有 key（key 本身很轻，不会 OOM），再分批读取图片数据流式写入磁盘
@@ -5221,10 +5231,10 @@ ${escapeHtml(a.name)}
         showToast("正在导出，请稍候…");
         const parts = [];
         parts.push('{\n');
-        parts.push('"artworks":' + JSON.stringify(artworks) + ',\n');
-        parts.push('"artists":' + JSON.stringify(artists) + ',\n');
-        parts.push('"groups":' + JSON.stringify(groups) + ',\n');
-        parts.push('"tags":' + JSON.stringify(tags) + ',\n');
+        parts.push('"artworks":' + JSON.stringify(dbArtworks) + ',\n');
+        parts.push('"artists":' + JSON.stringify(dbArtists) + ',\n');
+        parts.push('"groups":' + JSON.stringify(dbGroups) + ',\n');
+        parts.push('"tags":' + JSON.stringify(dbTags) + ',\n');
         parts.push('"images":{');
         await new Promise((resolve, reject) => {
           const tx = db.transaction("images", "readonly");
