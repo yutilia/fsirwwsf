@@ -494,6 +494,75 @@
       margin-right: auto;
     }
 
+    /* 画师多选删除模式 */
+    .artist-select-bar {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .artist-select-bar .sel-count {
+      font-size: 13px;
+      color: var(--text2);
+      margin-right: auto;
+    }
+
+    .artist-card {
+      position: relative;
+    }
+
+    .artist-card .select-checkbox {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 2px solid var(--accent);
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 14px;
+      z-index: 5;
+    }
+
+    body.artist-del-mode .artist-select-bar {
+      display: flex;
+    }
+
+    body.artist-del-mode .artist-card .select-checkbox {
+      display: flex;
+    }
+
+    body.artist-del-mode .artist-card {
+      cursor: default;
+    }
+
+    body.artist-del-mode .artist-card.selected {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 2px var(--danger);
+    }
+
+    body.artist-del-mode .artist-card.selected .select-checkbox {
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    /* 画廊卡片「无数据」快捷按钮 */
+    .nodata-btn.active {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
     .artwork-thumb {
       width: 100%;
       aspect-ratio: 3/4;
@@ -2007,6 +2076,12 @@
             <option value="noArtwork">无作品</option>
           </select>
         </div>
+        <div class="artist-select-bar" id="artistSelectBar">
+          <span class="sel-count" id="artistSelCount">已选 0 项</span>
+          <button class="btn btn-ghost btn-sm" id="artistSelAllPage">全选当前</button>
+          <button class="btn btn-ghost btn-sm" id="artistSelClear">清空选择</button>
+          <button class="btn btn-danger btn-sm" id="artistSelDelete">🗑 删除选中</button>
+        </div>
         <div class="content" id="artistsContent"></div>
       </div>
 
@@ -2297,6 +2372,8 @@
             <button class="btn btn-ghost btn-sm" id="exportArtistsTxtBtn" title="导出全部画师名为txt（一行一个）">📝
               导出画师txt</button>
             <button class="btn btn-ghost btn-sm" id="exportDiscardedBtn" title="仅导出被标为废弃的画师名">📤 导出废弃画师</button>
+            <button class="btn btn-ghost btn-sm" id="exportNoArtworkBtn" title="导出没有任何作品的画师名（一行一个）">📤 导出无作品画师</button>
+            <button class="btn btn-ghost btn-sm" id="exportByTagBtn" title="导出含指定标签作品的所有画师名">📤 导出指定标签画师</button>
             <button class="btn btn-ghost btn-sm" id="normalizeArtistsBtn" title="规范化所有画师名（空格转下划线，去末尾空格/下划线）">🔧
               规范化画师名</button>
             <button class="btn btn-ghost btn-sm" id="mergeDuplicateArtistsBtn" title="合并重复画师（同名的保留第一个）">🔗
@@ -2563,6 +2640,16 @@
     let artistSortMode = "default";
     let artistFilterMode = "all"; // all/active/discarded
     let artistDeleteMode = false;
+    let artistSelectedIds = new Set(); // 画师多选已选中ID
+    // 性能优化：id -> 对象 的 Map 缓存，在 render 函数开头调用 rebuildArtistMaps() 刷新
+    let _artistMap = new Map();
+    let _groupMap = new Map();
+    function rebuildArtistMaps() {
+      _artistMap = new Map(artists.map(a => [a.id, a]));
+      _groupMap = new Map(groups.map(g => [g.id, g]));
+    }
+    // 疑似无数据 标签名（画廊卡片快捷注入）
+    const SUSPECT_NO_DATA_TAG = "疑似无数据";
     let adminArtSort = "timeDesc"; // timeDesc/timeAsc/letterDesc/letterAsc
     let adminArtistSort = "timeDesc";
     let adminArtistSearch = "";
@@ -2572,7 +2659,7 @@
 
     // ===== 工具：获取画师的累计评分 =====
     function getArtistRating(artistId) {
-      const a = artists.find(x => x.id === artistId);
+      const a = _artistMap.get(artistId) || artists.find(x => x.id === artistId);
       if (!a) return { up: 0, down: 0 };
       return { up: a.up || 0, down: a.down || 0 };
     }
@@ -2584,11 +2671,11 @@
     }
     // 判断画师是否废弃
     function isArtistDiscarded(artistId) {
-      const a = artists.find(x => x.id === artistId);
+      const a = _artistMap.get(artistId) || artists.find(x => x.id === artistId);
       return !!(a && a.discarded);
     }
     function isGroupDiscarded(groupId) {
-      const g = groups.find(x => x.id === groupId);
+      const g = _groupMap.get(groupId) || groups.find(x => x.id === groupId);
       return !!(g && g.discarded);
     }
     function getArtistArtworkCount(artistId) {
@@ -2597,12 +2684,12 @@
     // 切换废弃标签
     async function toggleDiscarded(id, isGroup) {
       if (isGroup) {
-        const g = groups.find(x => x.id === id);
+        const g = _groupMap.get(id) || groups.find(x => x.id === id);
         if (!g) return;
         g.discarded = !g.discarded;
         await dbPut("groups", g);
       } else {
-        const a = artists.find(x => x.id === id);
+        const a = _artistMap.get(id) || artists.find(x => x.id === id);
         if (!a) return;
         a.discarded = !a.discarded;
         await dbPut("artists", a);
@@ -2611,15 +2698,40 @@
       renderGallery();
       renderArtists();
       renderAdmin();
-      showToast(isGroup ? "" : (artists.find(x => x.id === id)?.discarded ? "已标为废弃" : "已取消废弃"));
+      const cur = _artistMap.get(id);
+      showToast(isGroup ? "" : (cur?.discarded ? "已标为废弃" : "已取消废弃"));
     }
     // 给画师加评分（持久化）
     async function addArtistRating(artistId, delta) {
-      const a = artists.find(x => x.id === artistId);
+      const a = _artistMap.get(artistId) || artists.find(x => x.id === artistId);
       if (!a) return;
       if (delta > 0) a.up = (a.up || 0) + delta;
       else if (delta < 0) a.down = (a.down || 0) + (-delta);
       await dbPut("artists", a);
+    }
+    // 给画作切换「疑似无数据」标签（标签不存在则自动创建）
+    async function toggleNoDataTag(awId) {
+      let tag = tags.find(t => t.name === SUSPECT_NO_DATA_TAG);
+      if (!tag) {
+        tag = { id: uid(), name: SUSPECT_NO_DATA_TAG };
+        await dbPut("tags", tag);
+        tags.push(tag);
+        renderTagFilter();
+      }
+      const aw = artworks.find(a => a.id === awId);
+      if (!aw) return;
+      aw.tags = aw.tags || [];
+      if (aw.tags.includes(tag.id)) {
+        aw.tags = aw.tags.filter(t => t !== tag.id);
+        showToast("已取消「疑似无数据」标签");
+      } else {
+        aw.tags.push(tag.id);
+        showToast("已标记「疑似无数据」");
+      }
+      await dbPut("artworks", aw);
+      artworks = artworks.map(a => a.id === aw.id ? aw : a);
+      renderGallery();
+      renderAdmin();
     }
     // 进度条
     function showProgress(title, current, total) {
@@ -2804,9 +2916,14 @@
       }
     });
     function getArtistName(id) {
-      const a = artists.find(x => x.id === id);
-      const g = groups.find(x => x.id === id);
-      return a?.name || g?.name || "未知";
+      const a = _artistMap.get(id);
+      if (a) return a.name;
+      const g = _groupMap.get(id);
+      if (g) return g.name;
+      const af = artists.find(x => x.id === id);
+      if (af) return af.name;
+      const gf = groups.find(x => x.id === id);
+      return gf?.name || "未知";
     }
     function updateStats() {
       document.getElementById("totalArtworks").textContent = artworks.length;
@@ -2855,10 +2972,19 @@
       }
       grid.style.gridTemplateColumns = "";
 
-      const search = document.getElementById("gallerySearch").value.toLowerCase();
+      rebuildArtistMaps();
+      // 性能优化：预建索引，避免在 filter/sort 循环里反复 find
       const groupIds = new Set(groups.map(g => g.id));
+      const tagById = new Map(tags.map(t => [t.id, t]));
+      const countByArtist = new Map();
+      for (const a of artworks) countByArtist.set(a.artistId, (countByArtist.get(a.artistId) || 0) + 1);
+      // 疑似无数据 标签ID（用于卡片按钮高亮）
+      const noDataTagId = tags.find(t => t.name === SUSPECT_NO_DATA_TAG)?.id || "";
+
+      const search = document.getElementById("gallerySearch").value.toLowerCase();
+      const searchN = search ? normForSearch(search) : "";
       let filtered = artworks.filter(a => {
-        const matchSearch = !search || normForSearch(a.title).includes(normForSearch(search)) || normForSearch(getArtistName(a.artistId)).includes(normForSearch(search));
+        const matchSearch = !searchN || normForSearch(a.title).includes(searchN) || normForSearch(getArtistName(a.artistId)).includes(searchN);
         const matchTag = !currentFilterTag || a.tags?.includes(currentFilterTag);
         const isGroup = groupIds.has(a.artistId);
         const matchType = galleryArtistType === "all"
@@ -2875,7 +3001,7 @@
           : galleryDiscardedMode === "only" ? discarded
             : !discarded;
         // 作品数筛选
-        const artistCount = getArtistArtworkCount(a.artistId);
+        const artistCount = countByArtist.get(a.artistId) || 0;
         const matchCount = galleryCountFilter === "all"
           || (galleryCountFilter === "1" && artistCount === 1)
           || (galleryCountFilter === "2-5" && artistCount >= 2 && artistCount <= 5)
@@ -2917,12 +3043,13 @@
         card.className = "artwork-card";
         if (gallerySelectMode && gallerySelectedIds.has(aw.id)) card.classList.add("selected");
         const tagEls = (aw.tags || []).slice(0, 3).map(tid => {
-          const t = tags.find(x => x.id === tid);
+          const t = tagById.get(tid);
           return t ? `<span class="tag-pill">${escapeHtml(t.name)}</span>` : "";
         }).join("");
         const isGroup = groupIds.has(aw.artistId);
         const discarded = isGroup ? isGroupDiscarded(aw.artistId) : isArtistDiscarded(aw.artistId);
         const r = isGroup ? { up: 0, down: 0 } : getArtistRating(aw.artistId);
+        const hasNoData = noDataTagId && aw.tags?.includes(noDataTagId);
         // 缩略图先放占位符，进视口后懒加载
         card.innerHTML = `
             <div class="select-checkbox">${gallerySelectedIds.has(aw.id) ? "✓" : ""}</div>
@@ -2943,6 +3070,7 @@
                     <button class="btn btn-ghost btn-sm discard-btn" data-id="${aw.artistId}" data-isgroup="${isGroup ? "1" : ""}" title="标记/取消废弃">${discarded ? "♻" : "🗑"}</button>
                     <button class="btn btn-ghost btn-sm del-aw-btn" data-id="${aw.id}" title="删除此画作">✕</button>
                 </div>
+                <div style="margin-top:6px;"><button class="btn btn-ghost btn-sm nodata-btn ${hasNoData ? "active" : ""}" data-id="${aw.id}" title="给该画作打上「${SUSPECT_NO_DATA_TAG}」标签">⚠ 无数据</button></div>
             </div>`;
         card.dataset.awId = aw.id;
         grid.appendChild(card);
@@ -3083,6 +3211,11 @@
           showToast("已删除画作");
         }
       }));
+      // 疑似无数据 标签快捷切换
+      grid.querySelectorAll(".nodata-btn").forEach(btn => btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await toggleNoDataTag(btn.dataset.id);
+      }));
 
       // 渲染分页条
       paginationEl.innerHTML = "";
@@ -3169,27 +3302,43 @@
     }
 
     // ==================== 画师页 ====================
+    function updateArtistSelCount() {
+      const el = document.getElementById("artistSelCount");
+      if (el) el.textContent = `已选 ${artistSelectedIds.size} 项`;
+    }
     function renderArtists() {
       const container = document.getElementById("artistsContent");
       if (!container) return;
-      // 删除模式按钮样式
+      rebuildArtistMaps();
+      // 删除模式按钮样式 + body class
       const delBtn = document.getElementById("artistDelModeBtn");
       if (delBtn) {
         delBtn.style.background = artistDeleteMode ? "var(--danger)" : "";
         delBtn.style.color = artistDeleteMode ? "#fff" : "";
         delBtn.textContent = artistDeleteMode ? "✕ 退出删除模式" : "☑ 删除模式";
       }
+      document.body.classList.toggle("artist-del-mode", artistDeleteMode);
+      updateArtistSelCount();
+      if (!artistDeleteMode) artistSelectedIds.clear();
       if (artists.length === 0) {
         container.innerHTML = `<div style="text-align:center;padding:80px 0;color:var(--text3);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style="width:40px;height:40px;"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
             <p style="margin-top:12px;">还没有画师，点击「新增画师」开始</p></div>`;
         return;
       }
+      // 性能优化：一次性构建 artistId -> {count, awIds} 索引，避免每个画师都 filter 一遍
+      const awIndex = new Map();
+      for (const w of artworks) {
+        let ent = awIndex.get(w.artistId);
+        if (!ent) { ent = { count: 0, awIds: [] }; awIndex.set(w.artistId, ent); }
+        ent.count++; ent.awIds.push(w.id);
+      }
       // 搜索 + 过滤 + 排序
       const q = artistSearchQuery.toLowerCase();
+      const qn = q ? normForSearch(q) : "";
       let list = artists.filter(a => {
-        const matchQ = !q || normForSearch(a.name).includes(normForSearch(q)) || normForSearch(a.alias).includes(normForSearch(q));
-        const awCount = artworks.filter(w => w.artistId === a.id).length;
+        const matchQ = !qn || normForSearch(a.name).includes(qn) || normForSearch(a.alias).includes(qn);
+        const awCount = awIndex.get(a.id)?.count || 0;
         const matchF = artistFilterMode === "all"
           || (artistFilterMode === "active" && !a.discarded)
           || (artistFilterMode === "discarded" && a.discarded)
@@ -3207,8 +3356,9 @@
       }
       let html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">`;
       list.forEach(a => {
-        const count = artworks.filter(w => w.artistId === a.id).length;
-        const awIds = artworks.filter(w => w.artistId === a.id).map(w => w.id);
+        const ent = awIndex.get(a.id);
+        const count = ent?.count || 0;
+        const awIds = ent?.awIds || [];
         const firstId = awIds[0] || "";
         const thumbHtml = firstId
           ? `<div class="artist-thumb-wrap" data-ids='${JSON.stringify(awIds)}' data-idx="0">
@@ -3224,13 +3374,16 @@
           : `<button class="btn btn-ghost btn-sm edit-artist-btn" data-id="${a.id}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
             </button>`;
+        const selected = artistSelectedIds.has(a.id);
+        const cardCls = "card artist-card" + (selected ? " selected" : "") + (a.discarded ? " discarded-card" : "");
         const discardedStyle = a.discarded ? 'style="border-color:var(--danger);background:rgba(239,68,68,0.06);opacity:0.85;"' : "";
-        html += `<div class="card" ${discardedStyle}>
+        html += `<div class="${cardCls}" data-artist-id="${a.id}" ${discardedStyle}>
+            <div class="select-checkbox">${selected ? "✓" : ""}</div>
             <div class="card-body" style="display:flex;gap:14px;align-items:center;">
                 ${thumbHtml}
                 <div style="flex:1;min-width:0;">
                     <div style="font-family:'Noto Serif JP',serif;font-size:15px;display:flex;align-items:center;gap:6px;">
-                        ${escapeHtml(a.name)} 
+                        ${escapeHtml(a.name)}
                         ${a.discarded ? '<span style="color:var(--danger);font-size:12px;font-weight:bold;background:rgba(239,68,68,0.15);padding:1px 6px;border-radius:3px;">🗑 废弃</span>' : ""}
                     </div>
                     <div style="color:${a.discarded ? "var(--text3)" : "var(--text2)"};font-size:12px;margin-top:3px;">${escapeHtml(a.alias || "—")}</div>
@@ -3264,8 +3417,9 @@
         window._artistThumbObserver.observe(el);
       });
       // 点击切换（异步加载下一张）
-      document.querySelectorAll(".artist-thumb-wrap").forEach(wrap => {
-        wrap.addEventListener("click", async () => {
+      container.querySelectorAll(".artist-thumb-wrap").forEach(wrap => {
+        wrap.addEventListener("click", async (e) => {
+          if (artistDeleteMode) { e.stopPropagation(); return; }
           const ids = JSON.parse(wrap.dataset.ids);
           let idx = (parseInt(wrap.dataset.idx) + 1) % ids.length;
           wrap.dataset.idx = idx;
@@ -3274,32 +3428,53 @@
           if (img && data) img.src = data;
         });
       });
-      document.querySelectorAll(".edit-artist-btn").forEach(btn => btn.addEventListener("click", () => openArtistModal(btn.dataset.id)));
-      document.querySelectorAll(".del-artist-btn").forEach(btn => btn.addEventListener("click", async () => {
+      container.querySelectorAll(".edit-artist-btn").forEach(btn => btn.addEventListener("click", (e) => { e.stopPropagation(); openArtistModal(btn.dataset.id); }));
+      // 多选：点击卡片切换选中
+      container.querySelectorAll(".artist-card").forEach(card => {
+        card.addEventListener("click", (e) => {
+          if (!artistDeleteMode) return;
+          if (e.target.closest("button")) return; // 单条删除按钮不触发选中
+          const id = card.dataset.artistId;
+          if (artistSelectedIds.has(id)) {
+            artistSelectedIds.delete(id);
+            card.classList.remove("selected");
+            card.querySelector(".select-checkbox").textContent = "";
+          } else {
+            artistSelectedIds.add(id);
+            card.classList.add("selected");
+            card.querySelector(".select-checkbox").textContent = "✓";
+          }
+          updateArtistSelCount();
+        });
+      });
+      container.querySelectorAll(".del-artist-btn").forEach(btn => btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
         const id = btn.dataset.id;
-        const a = artists.find(x => x.id === id);
+        const a = _artistMap.get(id) || artists.find(x => x.id === id);
         if (!a) return;
         if (!confirm(`确定删除画师「${a.name}」？该画师下的所有画作也会被删除。`)) return;
-        // 删除该画师所有画作
+        await deleteArtistsByIds([id]);
+        showToast("已删除画师");
+      }));
+    }
+    // 批量删除画师：同时删除其所有画作与图片
+    async function deleteArtistsByIds(ids) {
+      for (const id of ids) {
         const awToRemove = artworks.filter(w => w.artistId === id);
-        for (const w of awToRemove) {
-          await dbDelete("images", w.id);
-        }
+        for (const w of awToRemove) await dbDelete("images", w.id);
         for (let i = artworks.length - 1; i >= 0; i--) {
           if (artworks[i].artistId === id) artworks.splice(i, 1);
         }
-        // 从artworksStore删除
         for (const w of awToRemove) await dbDelete("artworks", w.id);
-        // 删除画师
         const idx2 = artists.findIndex(x => x.id === id);
         if (idx2 >= 0) artists.splice(idx2, 1);
         await dbDelete("artists", id);
-        updateStats();
-        renderArtists();
-        renderGallery();
-        renderAdmin();
-        showToast("已删除画师");
-      }));
+      }
+      artistSelectedIds.clear();
+      updateStats();
+      renderArtists();
+      renderGallery();
+      renderAdmin();
     }
 
     let _artistSaveCallback = null; // 保存后的回调（用于上传页绑定）
@@ -4951,6 +5126,7 @@ ${escapeHtml(a.name)}
     function renderAdmin() {
       const container = document.getElementById("adminContent");
       if (!container) return;
+      rebuildArtistMaps();
       const activeTab = document.querySelector("[data-admin-tab].btn-primary")?.dataset.adminTab || "artworks";
       const batchHeader = adminBatchMode
         ? `<button class="btn btn-ghost btn-sm admin-sel-all">全选</button><button class="btn btn-ghost btn-sm admin-desel-all">取消全选</button><button class="btn btn-danger btn-sm admin-batch-del" style="display:none;">🗑 删除选中</button>`
@@ -5653,6 +5829,26 @@ ${escapeHtml(a.name)}
       }
     });
 
+    // ===== 标签选择器（临时浮层，点选一个标签后回调）=====
+    function promptSelectTag(onSelected) {
+      if (tags.length === 0) { showToast("没有标签", "error"); return; }
+      const overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999;";
+      const box = document.createElement("div");
+      box.style.cssText = "background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;max-width:520px;width:90vw;max-height:70vh;overflow:auto;";
+      const sorted = [...tags].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+      box.innerHTML = `<div style="font-size:14px;font-weight:600;margin-bottom:12px;">选择标签</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">${sorted.map(t => `<button class="filter-tag" data-id="${t.id}">${escapeHtml(t.name)}</button>`).join("")}</div>
+        <div style="margin-top:14px;text-align:right;"><button class="btn btn-ghost btn-sm" data-cancel>取消</button></div>`;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      box.querySelectorAll(".filter-tag").forEach(b => b.addEventListener("click", () => {
+        const id = b.dataset.id; overlay.remove(); onSelected(id);
+      }));
+      box.querySelector("[data-cancel]").addEventListener("click", () => overlay.remove());
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    }
+
     // ===== 导出全部画师为 txt（一行一个）=====
     document.getElementById("exportArtistsTxtBtn")?.addEventListener("click", () => {
       const lines = artists.map(a => a.name).join("\n");
@@ -5677,6 +5873,53 @@ ${escapeHtml(a.name)}
       a.click();
       URL.revokeObjectURL(url);
       showToast(`已导出 ${discarded.length} 位废弃画师`);
+    });
+
+    // ===== 导出无作品画师（一人一行）=====
+    document.getElementById("exportNoArtworkBtn")?.addEventListener("click", () => {
+      const usedIds = new Set(artworks.map(w => w.artistId));
+      const noAw = artists.filter(a => !usedIds.has(a.id));
+      if (noAw.length === 0) { showToast("没有无作品画师", "error"); return; }
+      const lines = noAw.map(a => a.name).join("\n");
+      const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `无作品画师_${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`已导出 ${noAw.length} 位无作品画师`);
+    });
+
+    // ===== 导出指定标签画师：先弹标签选择器，再导出该标签作品涉及的所有画师名 =====
+    document.getElementById("exportByTagBtn")?.addEventListener("click", () => {
+      if (tags.length === 0) { showToast("没有标签", "error"); return; }
+      promptSelectTag(async (tagId) => {
+        const tag = tags.find(t => t.id === tagId);
+        if (!tag) return;
+        // 收集含该标签作品的所有画师/组合 id
+        const artistIds = new Set();
+        for (const aw of artworks) {
+          if (aw.tags?.includes(tagId)) artistIds.add(aw.artistId);
+        }
+        // 解析为名称（单人画师 + 组合），单人画师按名排序输出
+        const names = [];
+        for (const id of artistIds) {
+          const a = _artistMap.get(id);
+          if (a) { names.push(a.name); continue; }
+          const g = _groupMap.get(id);
+          if (g) names.push("[组合]" + g.name);
+        }
+        if (names.length === 0) { showToast(`标签「${tag.name}」没有关联作品`, "error"); return; }
+        names.sort((x, y) => x.localeCompare(y, undefined, { sensitivity: "base" }));
+        const lines = names.join("\n");
+        const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `标签_${tag.name}_画师_${new Date().toISOString().slice(0, 10)}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`已导出 ${names.length} 位画师（标签：${tag.name}）`);
+      });
     });
 
     // ===== 规范化已有画师名（空格转下划线，去末尾空格/下划线）=====
@@ -6093,6 +6336,32 @@ ${escapeHtml(a.name)}
       showToast(`已删除 ${ids.length} 件画作`, "success");
     });
 
+    // ==================== 画师多选删除 ====================
+    document.getElementById("artistSelClear")?.addEventListener("click", () => {
+      artistSelectedIds.clear();
+      updateArtistSelCount();
+      renderArtists();
+    });
+    document.getElementById("artistSelAllPage")?.addEventListener("click", () => {
+      // 全选当前过滤后可见的画师
+      const q = artistSearchQuery.toLowerCase();
+      const qn = q ? normForSearch(q) : "";
+      const visible = artists.filter(a => {
+        const matchQ = !qn || normForSearch(a.name).includes(qn) || normForSearch(a.alias).includes(qn);
+        return matchQ;
+      });
+      visible.forEach(a => artistSelectedIds.add(a.id));
+      updateArtistSelCount();
+      renderArtists();
+    });
+    document.getElementById("artistSelDelete")?.addEventListener("click", async () => {
+      if (artistSelectedIds.size === 0) { showToast("未选择任何画师", "error"); return; }
+      if (!confirm(`确定删除选中的 ${artistSelectedIds.size} 位画师？相关画作也会一并删除，此操作不可撤销。`)) return;
+      const ids = [...artistSelectedIds];
+      await deleteArtistsByIds(ids);
+      showToast(`已删除 ${ids.length} 位画师`, "success");
+    });
+
     // ==================== 元数据清除工具 ====================
     let cleanerItems = []; // { file, name, status, cleanBlob, hasMetadata, metaKeys }
 
@@ -6352,6 +6621,7 @@ ${escapeHtml(a.name)}
       groups = await dbGetAll("groups");
       tags = await dbGetAll("tags");
       // ★ 不再全量加载图片，改为按需懒加载
+      rebuildArtistMaps();
       updateStats(); renderTagFilter(); renderGallery(); renderArtists(); renderGroups(); renderTags(); renderAdmin(); initGalleryFilterBar();
     }
     // ==================== docx 导入功能 ====================
