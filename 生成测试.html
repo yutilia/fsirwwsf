@@ -6,6 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>画师测试生成</title>
   <script src="jszip.min.js"></script>
+  <script>/* CDN fallback：本地加载失败时使用 jsdelivr */
+    if (typeof window.JSZip === 'undefined') {
+      document.write('<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"><\/scr' + 'ipt>');
+    }
+  </script>
   <style>
     *,
     *::before,
@@ -2382,14 +2387,12 @@
         try {
           r = await generateOne(prompt, negative);
         } catch (err) {
-          // 云端队列失败时回退到直连生成
+          // 云端队列失败时直接停止，不回退直连（避免并发导致 403 被封号）
           if (settings.enableCloudQueue && settings.cloudQueueUrl && !err.message.includes('NovelAI')) {
-            console.warn('[Gen] 云端队列失败，回退直连:', err.message);
-            toast('云端队列失败，回退直连生成', 'err');
-            const backup = settings.enableCloudQueue;
-            settings.enableCloudQueue = false;
-            try { r = await generateOne(prompt, negative); }
-            finally { settings.enableCloudQueue = backup; }
+            console.warn('[Gen] 云端队列失败，停止生成:', err.message);
+            toast('云端队列失败：' + err.message.slice(0, 50), 'err');
+            setStatus('err', '云端队列失败，已停止生成');
+            return;
           } else { throw err; }
         }
         $('resultImg').src = r.blobUrl;
