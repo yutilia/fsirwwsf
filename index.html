@@ -1875,6 +1875,234 @@
     .lightbox-img {
       cursor: zoom-out;
     }
+
+    /* ==================== 审阅界面 ==================== */
+    .review-slide-card {
+      flex: 1;
+      min-width: 320px;
+      max-width: 720px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .review-slide-card .review-img-wrap {
+      width: 100%;
+      max-height: 70vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface2);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: zoom-in;
+    }
+
+    .review-slide-card .review-img-wrap img {
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+      display: block;
+    }
+
+    .review-slide-card .review-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+    }
+
+    .review-slide-card .review-info .review-artist {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .review-slide-card .review-info .review-title {
+      color: var(--text2);
+      font-size: 12px;
+    }
+
+    .review-slide-card .review-info .review-meta {
+      color: var(--text3);
+      font-size: 11px;
+    }
+
+    .review-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .review-btn {
+      flex: 1;
+      min-width: 80px;
+      padding: 14px 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .review-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .review-btn .review-btn-key {
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 400;
+    }
+
+    .review-btn.reject {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .review-btn.reject:hover {
+      background: rgba(201, 110, 110, 0.15);
+    }
+
+    .review-btn.approve {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .review-btn.approve:hover {
+      background: rgba(110, 201, 144, 0.15);
+    }
+
+    .review-btn.regen {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    .review-btn.regen:hover {
+      background: rgba(126, 184, 201, 0.15);
+    }
+
+    .review-btn.ugly {
+      border-color: #d4a44a;
+      color: #d4a44a;
+    }
+
+    .review-btn.ugly:hover {
+      background: rgba(212, 164, 74, 0.15);
+    }
+
+    .review-btn.suspect {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .review-btn.suspect:hover {
+      background: rgba(201, 169, 110, 0.15);
+    }
+
+    .review-history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .review-history-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 12px;
+    }
+
+    .review-history-item .rh-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: var(--surface3);
+      flex-shrink: 0;
+    }
+
+    .review-history-item .rh-info {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .review-history-item .rh-artist {
+      font-family: 'Noto Serif JP', serif;
+      color: var(--text);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .review-history-item .rh-time {
+      color: var(--text3);
+      font-size: 10px;
+    }
+
+    .review-history-item .rh-action-select {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .review-history-item.rh-discarded {
+      border-left: 3px solid var(--danger);
+    }
+
+    .review-history-item.rh-approved {
+      border-left: 3px solid var(--success);
+    }
+
+    .review-history-item.rh-regen {
+      border-left: 3px solid var(--accent2);
+    }
+
+    .review-history-item.rh-ugly {
+      border-left: 3px solid #d4a44a;
+    }
+
+    .review-history-item.rh-suspect {
+      border-left: 3px solid var(--accent);
+    }
+
+    .review-history-item.rh-skip {
+      border-left: 3px solid var(--text3);
+    }
+
+    /* 无数据 tag 在画师卡片上的显示 */
+    .nodata-badge {
+      color: var(--text3);
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(110, 108, 104, 0.18);
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 4px;
+    }
   </style>
 </head>
 
@@ -1912,6 +2140,13 @@
             <path d="M8 20c0-3 2-5 4-5s4 2 4 5" />
           </svg>
           组合
+        </div>
+        <div class="nav-item" data-page="review">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 2L3 7v5c0 5 4 9 9 10 5-1 9-5 9-10V7z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+          审阅
         </div>
         <div class="nav-section" style="margin-top: 12px;">工具</div>
         <div class="nav-item" data-page="tags">
@@ -2097,6 +2332,70 @@
           </button>
         </div>
         <div class="content" id="groupsContent"></div>
+      </div>
+
+      <!-- 审阅页 -->
+      <div id="reviewPage" class="page">
+        <div class="topbar">
+          <h2>画作审阅</h2>
+          <span style="font-size:12px;color:var(--text3);">键盘快捷键：z=× x=✓ c=♻ v=丑 b=?</span>
+        </div>
+        <div class="content" id="reviewContent">
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span style="font-size:12px;color:var(--text2);">审阅顺序：</span>
+                <select id="reviewModeSelect"
+                  style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;">
+                  <option value="random">随机审阅</option>
+                  <option value="sequential">顺序审阅</option>
+                  <option value="reverse">逆序审阅</option>
+                </select>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="reviewRestartBtn" title="清空审阅记录，重新审阅所有画作">🔄 重新审阅</button>
+              <button class="btn btn-ghost btn-sm" id="exportNoTagArtistsBtn" title="导出作品无任何审阅标签的画师名">📤
+                导出无标签画师</button>
+              <button class="btn btn-ghost btn-sm" id="exportNoSpecTagArtistsBtn" title="导出作品不含指定标签的画师名">📤
+                导出无指定标签画师</button>
+              <span id="reviewProgressText" style="font-size:12px;color:var(--text2);margin-left:auto;"></span>
+            </div>
+          </div>
+          <!-- 多选标签模态框 -->
+          <div id="tagSelectModal"
+            style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+            <div
+              style="background:#fff; padding:20px; border-radius:12px; max-width:600px; width:90%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+              <h3 style="margin-top:0;">选择要排除的标签（可多选）</h3>
+              <div id="tagCheckboxList"
+                style="display:flex; flex-wrap:wrap; gap:8px; overflow-y:auto; padding:10px 0; flex:1;">
+                <!-- JS 会动态生成复选框 -->
+              </div>
+              <div
+                style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; border-top:1px solid #eee; padding-top:16px;">
+                <button id="tagModalCancelBtn"
+                  style="padding:8px 20px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer;">取消</button>
+                <button id="tagModalConfirmBtn"
+                  style="padding:8px 20px; border-radius:6px; border:none; background:#007bff; color:#fff; cursor:pointer;">确认导出</button>
+              </div>
+            </div>
+          </div>
+          <div id="reviewMainArea" style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div id="reviewEmpty"
+              style="flex:1;min-width:300px;text-align:center;padding:60px 20px;color:var(--text3);">
+              <p style="font-size:16px;margin-bottom:8px;">✓ 所有画作已审阅完毕</p>
+              <p style="font-size:12px;">点击「重新审阅」按钮可以清空记录重新开始</p>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <div class="card-header">
+              <h3 style="font-size:14px;">最近5条审阅记录（可点击修改）</h3>
+            </div>
+            <div class="card-body" id="reviewHistoryBody">
+              <p style="color:var(--text3);font-size:12px;">暂无审阅记录</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 标签页 -->
@@ -3385,6 +3684,7 @@
                     <div style="font-family:'Noto Serif JP',serif;font-size:15px;display:flex;align-items:center;gap:6px;">
                         ${escapeHtml(a.name)}
                         ${a.discarded ? '<span style="color:var(--danger);font-size:12px;font-weight:bold;background:rgba(239,68,68,0.15);padding:1px 6px;border-radius:3px;">🗑 废弃</span>' : ""}
+                        ${count === 0 ? '<span class="nodata-badge">无数据</span>' : ""}
                     </div>
                     <div style="color:${a.discarded ? "var(--text3)" : "var(--text2)"};font-size:12px;margin-top:3px;">${escapeHtml(a.alias || "—")}</div>
                     <div style="color:var(--text3);font-size:11px;margin-top:4px;">${count} 件作品 · √${r.up} ×${r.down}</div>
@@ -6809,6 +7109,447 @@ ${escapeHtml(a.name)}
         showToast("解析 Excel 失败：" + err.message, "error");
       }
     }
+    // ==================== 画作审阅界面 ====================
+    // 审阅状态（持久化到 localStorage）
+    const REVIEW_TAG_DISCARD = "废弃";
+    const REVIEW_TAG_REGEN = "重新生成";
+    const REVIEW_TAG_UGLY = "丑";
+    const REVIEW_TAG_SUSPECT = "疑似无数据"; // 复用已有常量 SUSPECT_NO_DATA_TAG
+    const REVIEW_HISTORY_MAX = 5;
+    let reviewMode = localStorage.getItem("review_mode") || "random";
+    let reviewedArtworkIds = new Set(JSON.parse(localStorage.getItem("review_reviewed_ids") || "[]"));
+    let reviewHistory = JSON.parse(localStorage.getItem("review_history") || "[]"); // [{awId, artistId, action, ts}]
+    let reviewCurrentList = []; // 当前审阅队列（已排序）
+    let reviewCurrentIdx = 0;
+
+    function saveReviewState() {
+      localStorage.setItem("review_mode", reviewMode);
+      localStorage.setItem("review_reviewed_ids", JSON.stringify([...reviewedArtworkIds]));
+      localStorage.setItem("review_history", JSON.stringify(reviewHistory));
+    }
+
+    // 获取或创建审阅用标签 id
+    async function ensureReviewTag(name) {
+      let t = tags.find(x => x.name === name);
+      if (!t) {
+        t = { id: uid(), name };
+        await dbPut("tags", t);
+        tags.push(t);
+      }
+      return t.id;
+    }
+
+    // 获取待审阅画作列表（未审阅过的）
+    function getPendingReviewList() {
+      const list = artworks.filter(a => !reviewedArtworkIds.has(a.id));
+      // 排序：按画师名 + 画作创建时间
+      const sorted = [...list].sort((a, b) => {
+        const na = getArtistName(a.artistId);
+        const nb = getArtistName(b.artistId);
+        const cmp = na.localeCompare(nb, undefined, { sensitivity: "base" });
+        if (cmp !== 0) return cmp;
+        return (a.createdAt || 0) - (b.createdAt || 0);
+      });
+      if (reviewMode === "sequential") return sorted;
+      if (reviewMode === "reverse") return sorted.reverse();
+      // random
+      const shuffled = [...sorted];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    // 切换画作上的审阅标签（不重复添加）
+    async function setArtworkReviewTag(awId, tagName) {
+      const tagId = await ensureReviewTag(tagName);
+      const aw = artworks.find(a => a.id === awId);
+      if (!aw) return;
+      aw.tags = aw.tags || [];
+      if (!aw.tags.includes(tagId)) {
+        aw.tags.push(tagId);
+        await dbPut("artworks", aw);
+      }
+    }
+
+    // 从画作移除指定名称的标签
+    async function removeArtworkReviewTag(awId, tagName) {
+      const t = tags.find(x => x.name === tagName);
+      if (!t) return;
+      const aw = artworks.find(a => a.id === awId);
+      if (!aw || !aw.tags) return;
+      if (aw.tags.includes(t.id)) {
+        aw.tags = aw.tags.filter(x => x !== t.id);
+        await dbPut("artworks", aw);
+      }
+    }
+
+    // 压缩单张画作（缩到极小体积，仅留痕）
+    async function compressArtworkImage(awId) {
+      try {
+        const row = await dbGetOne("images", awId);
+        if (!row?.data) return false;
+        const compressed = await compressDataUrl(row.data, 320, 320, 0.35);
+        if (compressed) {
+          await dbPut("images", { id: awId, data: compressed });
+          imgCache.delete(awId);
+          delete images[awId];
+          _cacheSet(awId, compressed);
+          return true;
+        }
+      } catch (e) { console.warn("压缩失败", awId, e); }
+      return false;
+    }
+
+    // 标记画师为废弃（沿用既有 discarded 字段）
+    async function markArtistDiscarded(artistId) {
+      const a = _artistMap.get(artistId) || artists.find(x => x.id === artistId);
+      if (!a) return;
+      if (!a.discarded) {
+        a.discarded = true;
+        await dbPut("artists", a);
+      }
+    }
+
+    // 审阅动作：对当前画作执行 review
+    // action: 'reject' | 'approve' | 'regen' | 'ugly' | 'suspect'
+    async function reviewAction(action) {
+      if (reviewCurrentList.length === 0 || reviewCurrentIdx >= reviewCurrentList.length) return;
+      const aw = reviewCurrentList[reviewCurrentIdx];
+      if (!aw) return;
+
+      // 根据动作打标签/操作
+      if (action === "reject") {
+        // × 废弃：画作打标签 + 压缩 + 画师标为废弃
+        await setArtworkReviewTag(aw.id, REVIEW_TAG_DISCARD);
+        await compressArtworkImage(aw.id);
+        await markArtistDiscarded(aw.artistId);
+      } else if (action === "approve") {
+        // ✓ 直接跳过，不打标签
+      } else if (action === "regen") {
+        await setArtworkReviewTag(aw.id, REVIEW_TAG_REGEN);
+      } else if (action === "ugly") {
+        await setArtworkReviewTag(aw.id, REVIEW_TAG_UGLY);
+      } else if (action === "suspect") {
+        await setArtworkReviewTag(aw.id, REVIEW_TAG_SUSPECT);
+      }
+
+      // 加入已审阅集合
+      reviewedArtworkIds.add(aw.id);
+      // 写入历史（最前），最多保留 5 条
+      reviewHistory.unshift({
+        awId: aw.id,
+        artistId: aw.artistId,
+        action,
+        ts: Date.now()
+      });
+      if (reviewHistory.length > REVIEW_HISTORY_MAX) reviewHistory = reviewHistory.slice(0, REVIEW_HISTORY_MAX);
+      saveReviewState();
+
+      // 推进到下一张
+      reviewCurrentIdx++;
+      renderReview();
+      renderReviewHistory();
+      updateStats();
+      renderArtists();
+      renderAdmin();
+    }
+
+    // 修改历史中某条审阅记录的动作
+    async function modifyReviewHistory(index, newAction) {
+      const h = reviewHistory[index];
+      if (!h) return;
+      const oldAction = h.action;
+      if (oldAction === newAction) return;
+      // 移除旧标签
+      if (oldAction === "reject") await removeArtworkReviewTag(h.awId, REVIEW_TAG_DISCARD);
+      else if (oldAction === "regen") await removeArtworkReviewTag(h.awId, REVIEW_TAG_REGEN);
+      else if (oldAction === "ugly") await removeArtworkReviewTag(h.awId, REVIEW_TAG_UGLY);
+      else if (oldAction === "suspect") await removeArtworkReviewTag(h.awId, REVIEW_TAG_SUSPECT);
+      // 打新标签
+      if (newAction === "reject") {
+        await setArtworkReviewTag(h.awId, REVIEW_TAG_DISCARD);
+        await compressArtworkImage(h.awId);
+        await markArtistDiscarded(h.artistId);
+      } else if (newAction === "regen") {
+        await setArtworkReviewTag(h.awId, REVIEW_TAG_REGEN);
+      } else if (newAction === "ugly") {
+        await setArtworkReviewTag(h.awId, REVIEW_TAG_UGLY);
+      } else if (newAction === "suspect") {
+        await setArtworkReviewTag(h.awId, REVIEW_TAG_SUSPECT);
+      }
+      h.action = newAction;
+      saveReviewState();
+      renderReviewHistory();
+      renderGallery();
+      renderArtists();
+      renderAdmin();
+      showToast("已修改审阅记录");
+    }
+
+    // 渲染审阅主区域
+    async function renderReview() {
+      const mainArea = document.getElementById("reviewMainArea");
+      const progressText = document.getElementById("reviewProgressText");
+      if (!mainArea) return;
+      const total = artworks.length;
+      const reviewed = reviewedArtworkIds.size;
+      if (progressText) progressText.textContent = `已审阅 ${reviewed} / ${total}`;
+
+      // 重新构建待审阅列表（如果当前已用完）
+      if (reviewCurrentIdx >= reviewCurrentList.length) {
+        reviewCurrentList = getPendingReviewList();
+        reviewCurrentIdx = 0;
+      }
+      if (reviewCurrentList.length === 0) {
+        mainArea.innerHTML = `<div id="reviewEmpty" style="flex:1;min-width:300px;text-align:center;padding:60px 20px;color:var(--text3);">
+          <p style="font-size:16px;margin-bottom:8px;">✓ 所有画作已审阅完毕</p>
+          <p style="font-size:12px;">点击「重新审阅」按钮可以清空记录重新开始</p>
+        </div>`;
+        return;
+      }
+      const aw = reviewCurrentList[reviewCurrentIdx];
+      const imgData = await getImage(aw.id);
+      const artistName = getArtistName(aw.artistId);
+      const tagsHtml = (aw.tags || []).map(tid => {
+        const t = tags.find(x => x.id === tid);
+        return t ? `<span class="tag-pill">${escapeHtml(t.name)}</span>` : "";
+      }).join("");
+      mainArea.innerHTML = `
+        <div class="review-slide-card">
+          <div class="review-img-wrap" id="reviewImgWrap">
+            ${imgData ? `<img src="${imgData}" alt="${escapeHtml(artistName)}">` : `<span style="color:var(--text3);font-size:12px;padding:40px;">图片数据缺失</span>`}
+          </div>
+          <div class="review-info">
+            <span class="review-artist">${escapeHtml(artistName)}</span>
+            <span class="review-title">${escapeHtml(aw.title || "无标题")}</span>
+            <span class="review-meta">第 ${reviewCurrentIdx + 1} / ${reviewCurrentList.length} 张待审 · 共 ${total} 张（已审 ${reviewed}）</span>
+            <div class="artwork-tags" style="margin-top:4px;">${tagsHtml}</div>
+          </div>
+          <div class="review-actions">
+            <button class="review-btn reject" data-action="reject">×<span class="review-btn-key">z 废弃</span></button>
+            <button class="review-btn approve" data-action="approve">✓<span class="review-btn-key">x 跳过</span></button>
+            <button class="review-btn regen" data-action="regen">♻<span class="review-btn-key">c 重新生成</span></button>
+            <button class="review-btn ugly" data-action="ugly">丑<span class="review-btn-key">v 丑</span></button>
+            <button class="review-btn suspect" data-action="suspect">?<span class="review-btn-key">b 疑似无数据</span></button>
+          </div>
+        </div>`;
+      mainArea.querySelectorAll(".review-btn").forEach(btn => {
+        btn.addEventListener("click", () => reviewAction(btn.dataset.action));
+      });
+      // 点击图片放大
+      const imgWrap = document.getElementById("reviewImgWrap");
+      imgWrap?.addEventListener("click", async () => {
+        const data = await getImage(aw.id);
+        if (data) openLightbox(data, aw.title, artistName, aw.source, aw.nai);
+      });
+    }
+
+    // 渲染审阅历史
+    async function renderReviewHistory() {
+      const body = document.getElementById("reviewHistoryBody");
+      if (!body) return;
+      if (reviewHistory.length === 0) {
+        body.innerHTML = `<p style="color:var(--text3);font-size:12px;">暂无审阅记录</p>`;
+        return;
+      }
+      const items = await Promise.all(reviewHistory.map(async (h, i) => {
+        const aw = artworks.find(a => a.id === h.awId);
+        const thumb = aw ? (await getImage(aw.id)) : null;
+        const artistName = getArtistName(h.artistId);
+        const cls = h.action === "reject" ? "rh-discarded"
+          : h.action === "approve" ? "rh-approved"
+            : h.action === "regen" ? "rh-regen"
+              : h.action === "ugly" ? "rh-ugly"
+                : h.action === "suspect" ? "rh-suspect"
+                  : "rh-skip";
+        const time = new Date(h.ts).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        return `<div class="review-history-item ${cls}">
+          ${thumb ? `<img class="rh-thumb" src="${thumb}" alt="">` : `<div class="rh-thumb"></div>`}
+          <div class="rh-info">
+            <div class="rh-artist">${escapeHtml(artistName)}${aw?.title ? " · " + escapeHtml(aw.title) : ""}</div>
+            <div class="rh-time">${time}</div>
+          </div>
+          <select class="rh-action-select" data-idx="${i}">
+            <option value="reject" ${h.action === "reject" ? "selected" : ""}>× 废弃</option>
+            <option value="approve" ${h.action === "approve" ? "selected" : ""}>✓ 跳过</option>
+            <option value="regen" ${h.action === "regen" ? "selected" : ""}>♻ 重新生成</option>
+            <option value="ugly" ${h.action === "ugly" ? "selected" : ""}>丑</option>
+            <option value="suspect" ${h.action === "suspect" ? "selected" : ""}>? 疑似无数据</option>
+          </select>
+        </div>`;
+      }));
+      body.innerHTML = `<div class="review-history-list">${items.join("")}</div>`;
+      body.querySelectorAll(".rh-action-select").forEach(sel => {
+        sel.addEventListener("change", (e) => {
+          const idx = parseInt(e.target.dataset.idx);
+          modifyReviewHistory(idx, e.target.value);
+        });
+      });
+    }
+
+    // 重新审阅：清空记录
+    document.getElementById("reviewRestartBtn")?.addEventListener("click", () => {
+      if (!confirm("确定清空所有审阅记录，重新开始审阅？\n（已打的标签和压缩的图片不会恢复）")) return;
+      reviewedArtworkIds = new Set();
+      reviewHistory = [];
+      reviewCurrentList = [];
+      reviewCurrentIdx = 0;
+      saveReviewState();
+      renderReview();
+      renderReviewHistory();
+      showToast("已清空审阅记录");
+    });
+
+    // 审阅模式切换
+    document.getElementById("reviewModeSelect")?.addEventListener("change", (e) => {
+      reviewMode = e.target.value;
+      saveReviewState();
+      reviewCurrentList = [];
+      reviewCurrentIdx = 0;
+      renderReview();
+    });
+    // 初始化下拉值
+    document.getElementById("reviewModeSelect").value = reviewMode;
+
+    // 键盘快捷键：z x c v b
+    document.addEventListener("keydown", (e) => {
+      // 仅在审阅页激活时响应
+      const reviewPage = document.getElementById("reviewPage");
+      if (!reviewPage || !reviewPage.classList.contains("active")) return;
+      // 忽略输入框中的按键
+      const tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      const key = e.key.toLowerCase();
+      const map = { z: "reject", x: "approve", c: "regen", v: "ugly", b: "suspect" };
+      if (map[key]) {
+        e.preventDefault();
+        reviewAction(map[key]);
+      }
+    });
+
+    // 导出无标签画师（其所有作品均无 审阅标签，且画师未废弃）
+    document.getElementById("exportNoTagArtistsBtn")?.addEventListener("click", () => {
+      const reviewTagNames = [REVIEW_TAG_DISCARD, REVIEW_TAG_REGEN, REVIEW_TAG_UGLY, REVIEW_TAG_SUSPECT];
+      const reviewTagIds = new Set(tags.filter(t => reviewTagNames.includes(t.name)).map(t => t.id));
+      // 画作中带任意审阅标签 → 该画师"有标签"
+      const artistsWithTags = new Set();
+      for (const aw of artworks) {
+        if (aw.tags && aw.tags.some(tid => reviewTagIds.has(tid))) {
+          artistsWithTags.add(aw.artistId);
+        }
+      }
+      const result = artists.filter(a => !a.discarded && !artistsWithTags.has(a.id));
+      if (result.length === 0) { showToast("没有符合条件的画师", "error"); return; }
+      const lines = result.map(a => a.name).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })).join("\n");
+      const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `无标签画师_${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`已导出 ${result.length} 位无标签画师`);
+    });
+
+    function promptSelectTags(callback) {
+      const modal = document.getElementById('tagSelectModal');
+      const list = document.getElementById('tagCheckboxList');
+
+      list.innerHTML = tags.map(t => `
+    <label style="display:flex; align-items:center; gap:4px; padding:4px 10px; background:#f5f5f5; border-radius:16px; cursor:pointer;">
+      <input type="checkbox" value="${t.id}" /> ${t.name}
+    </label>
+  `).join('');
+
+      modal.style.display = 'flex';
+
+      document.getElementById('tagModalCancelBtn').onclick = () => {
+        modal.style.display = 'none';
+        callback(null);
+      };
+
+      document.getElementById('tagModalConfirmBtn').onclick = () => {
+        const checkedBoxes = list.querySelectorAll('input[type="checkbox"]:checked');
+        const selectedIds = Array.from(checkedBoxes).map(cb => cb.value); // 直接取字符串
+        modal.style.display = 'none';
+        callback(selectedIds);
+      };
+
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          modal.style.display = 'none';
+          callback(null);
+        }
+      };
+    }
+
+    // ---------- 按钮点击事件（完整修正版） ----------
+    document.getElementById("exportNoSpecTagArtistsBtn")?.addEventListener("click", () => {
+      if (tags.length === 0) { showToast("没有标签", "error"); return; }
+
+      promptSelectTags((selectedTagIds) => {
+        if (!selectedTagIds || selectedTagIds.length === 0) {
+          showToast("未选择任何标签", "error");
+          return;
+        }
+
+        const selectedTagNames = selectedTagIds
+          .map(id => tags.find(t => t.id === id)?.name)
+          .filter(Boolean);
+
+        // ---- 核心过滤（修正：直接字符串比较） ----
+        const artistsWithAnyTag = new Set();
+        for (const aw of artworks) {
+          const awTags = aw.tags || []; // 字段名就是 tags
+          if (awTags.length === 0) continue;
+
+          // 检查作品是否包含任一选中标签（字符串比较）
+          const hasSelected = awTags.some(tagId => selectedTagIds.includes(tagId));
+
+          if (hasSelected) {
+            artistsWithAnyTag.add(aw.artistId);
+          }
+        }
+        // ---------------------------------
+
+        // 调试日志（可删）
+        console.log('选中的标签ID:', selectedTagIds);
+        console.log('带有任一选中标签的画师ID:', [...artistsWithAnyTag]);
+
+        const result = artists.filter(a => !artistsWithAnyTag.has(a.id));
+
+        if (result.length === 0) {
+          showToast(`没有不含标签「${selectedTagNames.join('、')}」的画师`, "error");
+          return;
+        }
+
+        // 导出
+        const lines = result.map(a => a.name)
+          .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+          .join("\n");
+        const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `无标签_${selectedTagNames.join('_')}_画师_${new Date().toISOString().slice(0, 10)}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`已导出 ${result.length} 位不含「${selectedTagNames.join('、')}」的画师`);
+      });
+    });
+    // 切换到审阅页时刷新
+    document.querySelectorAll(".nav-item").forEach(item => {
+      item.addEventListener("click", () => {
+        if (item.dataset.page === "review") {
+          reviewCurrentList = [];
+          reviewCurrentIdx = 0;
+          renderReview();
+          renderReviewHistory();
+        }
+      });
+    });
+
     initData();
     // ==================== 主题切换 ====================
     const THEMES = ["", "theme-light", "theme-pink", "theme-green", "theme-blue", "theme-purple", "theme-blue-pink-sea", "theme-dark-blue", "theme-rose", "theme-mint"];
