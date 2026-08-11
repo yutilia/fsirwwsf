@@ -1942,8 +1942,8 @@
 
     .review-btn {
       flex: 1;
-      min-width: 80px;
-      padding: 14px 8px;
+      min-width: 40px;
+      padding: 2px 4px;
       border: 1px solid var(--border);
       background: var(--surface2);
       color: var(--text);
@@ -7123,6 +7123,7 @@ ${escapeHtml(a.name)}
     // ==================== 画作审阅界面 ====================
     // 审阅状态（持久化到 localStorage）
     const REVIEW_TAG_DISCARD = "废弃";
+    const REVIEW_TAG_OK = "ok"
     const REVIEW_TAG_REGEN = "重新生成";
     const REVIEW_TAG_UGLY = "丑";
     const REVIEW_TAG_SUSPECT = "疑似无数据"; // 复用已有常量 SUSPECT_NO_DATA_TAG
@@ -7249,7 +7250,7 @@ ${escapeHtml(a.name)}
           await compressArtworkImage(aw.id);
           await markArtistDiscarded(aw.artistId);
         } else if (action === "approve") {
-          // ✓ 直接跳过，不打标签
+          await setArtworkReviewTag(aw.id, REVIEW_TAG_OK);
         } else if (action === "regen") {
           await setArtworkReviewTag(aw.id, REVIEW_TAG_REGEN);
         } else if (action === "ugly") {
@@ -7290,6 +7291,7 @@ ${escapeHtml(a.name)}
       if (oldAction === newAction) return;
       // 移除旧标签
       if (oldAction === "reject") await removeArtworkReviewTag(h.awId, REVIEW_TAG_DISCARD);
+      else if (oldAction === "approve") await removeArtworkReviewTag(h.awId, REVIEW_TAG_OK);
       else if (oldAction === "regen") await removeArtworkReviewTag(h.awId, REVIEW_TAG_REGEN);
       else if (oldAction === "ugly") await removeArtworkReviewTag(h.awId, REVIEW_TAG_UGLY);
       else if (oldAction === "suspect") await removeArtworkReviewTag(h.awId, REVIEW_TAG_SUSPECT);
@@ -7298,6 +7300,8 @@ ${escapeHtml(a.name)}
         await setArtworkReviewTag(h.awId, REVIEW_TAG_DISCARD);
         await compressArtworkImage(h.awId);
         await markArtistDiscarded(h.artistId);
+      } else if (newAction === "approve") {
+        await setArtworkReviewTag(h.awId, REVIEW_TAG_OK);
       } else if (newAction === "regen") {
         await setArtworkReviewTag(h.awId, REVIEW_TAG_REGEN);
       } else if (newAction === "ugly") {
@@ -7400,7 +7404,7 @@ ${escapeHtml(a.name)}
           </div>
           <select class="rh-action-select" data-idx="${i}">
             <option value="reject" ${h.action === "reject" ? "selected" : ""}>× 废弃</option>
-            <option value="approve" ${h.action === "approve" ? "selected" : ""}>✓ 跳过</option>
+            <option value="approve" ${h.action === "approve" ? "selected" : ""}>✓ OK</option>
             <option value="regen" ${h.action === "regen" ? "selected" : ""}>♻ 重新生成</option>
             <option value="ugly" ${h.action === "ugly" ? "selected" : ""}>丑</option>
             <option value="suspect" ${h.action === "suspect" ? "selected" : ""}>? 疑似无数据</option>
@@ -7460,7 +7464,7 @@ ${escapeHtml(a.name)}
 
     // 导出无标签画师（其所有作品均无 审阅标签，且画师未废弃）
     document.getElementById("exportNoTagArtistsBtn")?.addEventListener("click", () => {
-      const reviewTagNames = [REVIEW_TAG_DISCARD, REVIEW_TAG_REGEN, REVIEW_TAG_UGLY, REVIEW_TAG_SUSPECT];
+      const reviewTagNames = [REVIEW_TAG_DISCARD, REVIEW_TAG_OK, REVIEW_TAG_REGEN, REVIEW_TAG_UGLY, REVIEW_TAG_SUSPECT];
       const reviewTagIds = new Set(tags.filter(t => reviewTagNames.includes(t.name)).map(t => t.id));
       // 画作中带任意审阅标签 → 该画师"有标签"
       const artistsWithTags = new Set();
