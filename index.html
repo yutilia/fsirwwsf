@@ -2013,6 +2013,15 @@
       background: rgba(201, 169, 110, 0.15);
     }
 
+    .review-btn.putback {
+      border-color: var(--text2);
+      color: var(--text2);
+    }
+
+    .review-btn.putback:hover {
+      background: rgba(158, 155, 148, 0.15);
+    }
+
     .review-history-list {
       display: flex;
       flex-direction: column;
@@ -2205,10 +2214,12 @@
       <!-- 画廊页 -->
       <div id="galleryPage" class="page active">
         <div class="topbar">
-          <button class="btn btn-ghost btn-sm" id="themeToggleBtn2"
-            onclick="themeIdx=(themeIdx+1)%THEMES.length; applyTheme();">🎨 主题</button>
-          <button class="btn btn-primary btn-sm" id="btnOpenGen" onclick="window.open('生成测试.html', '_blank')">✦
-            生成测试</button>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <button class="btn btn-ghost btn-sm" id="themeToggleBtn2"
+              onclick="themeIdx=(themeIdx+1)%THEMES.length; applyTheme();">🎨 主题</button>
+            <button class="btn btn-primary btn-sm" id="btnOpenGen" onclick="window.open('生成测试.html', '_blank')">✦
+              生成测试</button>
+          </div>
 
           <h2>画廊总览</h2>
           <button class="btn btn-ghost btn-sm" id="gallerySelectToggle" title="多选删除">☑ 多选</button>
@@ -2338,7 +2349,7 @@
       <div id="reviewPage" class="page">
         <div class="topbar">
           <h2>画作审阅</h2>
-          <span style="font-size:12px;color:var(--text3);">键盘快捷键：z=× x=✓ c=♻ v=丑 b=?</span>
+          <span style="font-size:12px;color:var(--text3);">键盘快捷键：s=× d=✓ f=♻ g=丑 h=? j=回</span>
         </div>
         <div class="content" id="reviewContent">
           <div class="card" style="margin-bottom:16px;">
@@ -7213,47 +7224,62 @@ ${escapeHtml(a.name)}
     }
 
     // 审阅动作：对当前画作执行 review
-    // action: 'reject' | 'approve' | 'regen' | 'ugly' | 'suspect'
+    // action: 'reject' | 'approve' | 'regen' | 'ugly' | 'suspect' | 'putback'
+    let reviewProcessing = false; // 并发锁，防止键盘连按导致动作丢失
     async function reviewAction(action) {
+      if (reviewProcessing) return;
       if (reviewCurrentList.length === 0 || reviewCurrentIdx >= reviewCurrentList.length) return;
       const aw = reviewCurrentList[reviewCurrentIdx];
       if (!aw) return;
 
-      // 根据动作打标签/操作
-      if (action === "reject") {
-        // × 废弃：画作打标签 + 压缩 + 画师标为废弃
-        await setArtworkReviewTag(aw.id, REVIEW_TAG_DISCARD);
-        await compressArtworkImage(aw.id);
-        await markArtistDiscarded(aw.artistId);
-      } else if (action === "approve") {
-        // ✓ 直接跳过，不打标签
-      } else if (action === "regen") {
-        await setArtworkReviewTag(aw.id, REVIEW_TAG_REGEN);
-      } else if (action === "ugly") {
-        await setArtworkReviewTag(aw.id, REVIEW_TAG_UGLY);
-      } else if (action === "suspect") {
-        await setArtworkReviewTag(aw.id, REVIEW_TAG_SUSPECT);
+      // "放回列表"：把当前画作移到队列末尾，不标记为已审阅，不写历史
+      if (action === "putback") {
+        reviewCurrentList.splice(reviewCurrentIdx, 1);
+        reviewCurrentList.push(aw);
+        renderReview();
+        return;
       }
 
-      // 加入已审阅集合
-      reviewedArtworkIds.add(aw.id);
-      // 写入历史（最前），最多保留 5 条
-      reviewHistory.unshift({
-        awId: aw.id,
-        artistId: aw.artistId,
-        action,
-        ts: Date.now()
-      });
-      if (reviewHistory.length > REVIEW_HISTORY_MAX) reviewHistory = reviewHistory.slice(0, REVIEW_HISTORY_MAX);
-      saveReviewState();
+      reviewProcessing = true;
+      try {
+        // 根据动作打标签/操作
+        if (action === "reject") {
+          // × 废弃：画作打标签 + 压缩 + 画师标为废弃
+          await setArtworkReviewTag(aw.id, REVIEW_TAG_DISCARD);
+          await compressArtworkImage(aw.id);
+          await markArtistDiscarded(aw.artistId);
+        } else if (action === "approve") {
+          // ✓ 直接跳过，不打标签
+        } else if (action === "regen") {
+          await setArtworkReviewTag(aw.id, REVIEW_TAG_REGEN);
+        } else if (action === "ugly") {
+          await setArtworkReviewTag(aw.id, REVIEW_TAG_UGLY);
+        } else if (action === "suspect") {
+          await setArtworkReviewTag(aw.id, REVIEW_TAG_SUSPECT);
+        }
 
-      // 推进到下一张
-      reviewCurrentIdx++;
-      renderReview();
-      renderReviewHistory();
-      updateStats();
-      renderArtists();
-      renderAdmin();
+        // 加入已审阅集合
+        reviewedArtworkIds.add(aw.id);
+        // 写入历史（最前），最多保留 5 条
+        reviewHistory.unshift({
+          awId: aw.id,
+          artistId: aw.artistId,
+          action,
+          ts: Date.now()
+        });
+        if (reviewHistory.length > REVIEW_HISTORY_MAX) reviewHistory = reviewHistory.slice(0, REVIEW_HISTORY_MAX);
+        saveReviewState();
+
+        // 推进到下一张
+        reviewCurrentIdx++;
+        await renderReview();
+        renderReviewHistory();
+        updateStats();
+        renderArtists();
+        renderAdmin();
+      } finally {
+        reviewProcessing = false;
+      }
     }
 
     // 修改历史中某条审阅记录的动作
@@ -7328,11 +7354,12 @@ ${escapeHtml(a.name)}
             <div class="artwork-tags" style="margin-top:4px;">${tagsHtml}</div>
           </div>
           <div class="review-actions">
-            <button class="review-btn reject" data-action="reject">×<span class="review-btn-key">z 废弃</span></button>
-            <button class="review-btn approve" data-action="approve">✓<span class="review-btn-key">x 跳过</span></button>
-            <button class="review-btn regen" data-action="regen">♻<span class="review-btn-key">c 重新生成</span></button>
-            <button class="review-btn ugly" data-action="ugly">丑<span class="review-btn-key">v 丑</span></button>
-            <button class="review-btn suspect" data-action="suspect">?<span class="review-btn-key">b 疑似无数据</span></button>
+            <button class="review-btn reject" data-action="reject">×<span class="review-btn-key">s 废弃</span></button>
+            <button class="review-btn approve" data-action="approve">✓<span class="review-btn-key">d ok</span></button>
+            <button class="review-btn regen" data-action="regen">♻<span class="review-btn-key">f 重新生成</span></button>
+            <button class="review-btn ugly" data-action="ugly">丑<span class="review-btn-key">g 丑</span></button>
+            <button class="review-btn suspect" data-action="suspect">?<span class="review-btn-key">h 疑似无数据</span></button>
+            <button class="review-btn putback" data-action="putback">回<span class="review-btn-key">j 放回列表</span></button>
           </div>
         </div>`;
       mainArea.querySelectorAll(".review-btn").forEach(btn => {
@@ -7413,7 +7440,7 @@ ${escapeHtml(a.name)}
     // 初始化下拉值
     document.getElementById("reviewModeSelect").value = reviewMode;
 
-    // 键盘快捷键：z x c v b
+    // 键盘快捷键：s d f g h j
     document.addEventListener("keydown", (e) => {
       // 仅在审阅页激活时响应
       const reviewPage = document.getElementById("reviewPage");
@@ -7421,8 +7448,10 @@ ${escapeHtml(a.name)}
       // 忽略输入框中的按键
       const tag = (e.target.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
+      // 忽略 Ctrl/Meta/Alt 组合键
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
-      const map = { z: "reject", x: "approve", c: "regen", v: "ugly", b: "suspect" };
+      const map = { s: "reject", d: "approve", f: "regen", g: "ugly", h: "suspect", j: "putback" };
       if (map[key]) {
         e.preventDefault();
         reviewAction(map[key]);
