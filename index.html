@@ -7237,7 +7237,7 @@ ${escapeHtml(a.name)}
       if (action === "putback") {
         reviewCurrentList.splice(reviewCurrentIdx, 1);
         reviewCurrentList.push(aw);
-        renderReview();
+        renderReview(); // 同步快速更新
         return;
       }
 
@@ -7247,8 +7247,11 @@ ${escapeHtml(a.name)}
         if (action === "reject") {
           // × 废弃：画作打标签 + 压缩 + 画师标为废弃
           await setArtworkReviewTag(aw.id, REVIEW_TAG_DISCARD);
-          await compressArtworkImage(aw.id);
-          await markArtistDiscarded(aw.artistId);
+          // 把耗时操作放到下一个事件循环
+          setTimeout(() => {
+            compressArtworkImage(aw.id);
+            markArtistDiscarded(aw.artistId);
+          }, 0);
         } else if (action === "approve") {
           await setArtworkReviewTag(aw.id, REVIEW_TAG_OK);
         } else if (action === "regen") {
@@ -7273,11 +7276,13 @@ ${escapeHtml(a.name)}
 
         // 推进到下一张
         reviewCurrentIdx++;
-        await renderReview();
-        renderReviewHistory();
-        updateStats();
-        renderArtists();
-        renderAdmin();
+        requestAnimationFrame(() => {
+          renderReview();
+          renderReviewHistory();
+          updateStats();
+          renderArtists();
+          renderAdmin();
+        });
       } finally {
         reviewProcessing = false;
       }
